@@ -2,7 +2,7 @@
 set -euo pipefail
 
 
-source /src/.venv/bin/activate
+source /opt/venv/bin/activate
 #exec /src/.venv/bin/python -m gunicorn defects4c_api:app \
 #     --worker-class uvicorn.workers.UvicornWorker \
 #     --bind 0.0.0.0:80

@@ -166,12 +166,9 @@ RUN git clone -q --depth 1 -b release-1.12.1 https://github.com/google/googletes
     rm -rf /tmp/googletest && ldconfig
 
 # ── Python / uv ──
-RUN mkdir -p /src && \
-    if [ ! -d /src/.venv ]; then \
-      pip3 install -q uv && \
-      cd /src && uv venv --allow-existing; \
-    fi && \
-    . /src/.venv/bin/activate && \
+RUN pip3 install -q uv && \
+    uv venv /opt/venv && \
+    . /opt/venv/bin/activate && \
     uv pip install \
       numpy cmake_format jinja2 pandas openai rich fastapi uvicorn jmespath \
       pytest pytest-asyncio pytest-tornasync pytest-trio pytest-twisted \

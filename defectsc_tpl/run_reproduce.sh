@@ -23,7 +23,7 @@ for one_sha in $sha_list ; do
         test_log="/out/$project/logs/${one_sha}.log"
 
         if [[ ! -f $test_log ]]; then 
-                /src/.venv/bin/python  bug_helper_v1_out2.py  reproduce   \
+                /opt/venv/bin/python  bug_helper_v1_out2.py  reproduce   \
                         "${project}@${one_sha}" 
         else 
                 echo "exist.....-->"$test_log

@@ -75,7 +75,7 @@ if [[ "$mode" != "mini" && "$mode" != "full" ]]; then
 fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-git_setup_script="${script_dir}/../out_tmp_dirs/git_setup.sh"
+git_setup_script="/out/git_setup.sh"
 
 debug "script_dir: ${script_dir}"
 debug "git_setup_script: ${git_setup_script}"
