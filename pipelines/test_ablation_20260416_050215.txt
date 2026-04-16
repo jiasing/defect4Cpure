@@ -1,0 +1,86 @@
+TEST ABLATION RUN
+============================================================
+Timestamp         : 2026-04-16 05:02:28
+Model             : deepseek-coder:6.7b
+Ablation          : all (localisation + classification + retrieval)
+Temperature       : 0.01
+Seed              : 42
+Base system prompt: You are a C/CPP code program repair expert
+============================================================
+
+Bug ID : the-tcpdump-group___tcpdump@ca336198e8bebccc18502de27672fdbd6eb34856
+SHA    : ca336198e8bebccc18502de27672fdbd6eb34856
+
+JIN outputs:
+  localisation  : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 2: score=0.7840 | pktap_if_print(netdissect_options *ndo,
+- line 11: score=0.2308 | 	if (caplen < sizeof(pktap_header_t) || length < sizeof(pktap_header_t)) {
+- line 29: score=0.9309 | 	if (caplen < hdrlen || length < hdrlen) {
+  classification: Classification signals:
+- category: Sanitizer (confidence=0.5060)
+- error_type: Incorrect Variable Usage (confidence=0.6581)
+  retrieval     : Retrieval signals:
+- status: ok
+- retrieved_items: 3
+- item 1: the-tcpdump-group/tcpdump print-pktap.c::pktap_if_print (distance=0.0000)
+  vulnerable_before:
+u_int
+pktap_if_print(netdissect_options *ndo,
+               const struct pcap_pkthdr *h, const u_char *p)
+{
+	uint32_t dlt, hdrlen, rectype;
+	...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 2: score=0.7840 | pktap_if_print(netdissect_options *ndo,
+- line 11: score=0.2308 | 	if (caplen < sizeof(pktap_header_t) || length < sizeof(pktap_header_t)) {
+- line 29: score=0.9309 | 	if (caplen < hdrlen || length < hdrlen) {
+Bug classification: Classification signals:
+- category: Sanitizer (confidence=0.5060)
+- error_type: Incorrect Variable Usage (confidence=0.6581)
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+u_int
+pktap_if_print(netdissect_options *ndo,
+               const struct pcap_pkthdr *h, const u_char *p)
+{
+	uint32_t dlt, hdrlen, rectype;
+	u_int caplen = h->caplen;
+	u_int length = h->len;
+	if_printer printer;
+	const ...
+
+Extracted patch:
+#include <stdio.h>
+#include <string.h>
+
+char* php_htmlspecialchars(const char *str, size_t len);
+
+int main() {
+    const char *input = "<script>alert('XSS')</script>";
+    char *output = php_htmlspecialchars(input, strlen(input));
+    
+    printf("%s\n", output);
+    
+    free(output); // Don't forget to free the memory allocated by php_htmlspecialchars
+    
+    return 0;
+}
+
+Compile : True
+Fixed   : False
+
+============================================================
+RESULT
+============================================================
+Compile Rate : 1 / 1 (100.0%)
+Pass@1       : 0 / 1 (0.0%)
