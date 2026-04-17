@@ -1,0 +1,41 @@
+[
+  {
+    "file": "deepseek-coder-6.7b_PerfectLoc.txt",
+    "timestamp": "2026-04-17 06:17:58",
+    "model": "deepseek-coder:6.7b",
+    "ablation": null,
+    "jin_augmentation": null,
+    "k": 1,
+    "total_cases": 52,
+    "compiled": 50,
+    "fixed": 1,
+    "compile_rate_pct": 96.2,
+    "pass_at_k_pct": 1.9
+  },
+  {
+    "file": "llama3-8b_PerfectLoc.txt",
+    "timestamp": "2026-04-17 06:13:55",
+    "model": "llama3:8b",
+    "ablation": null,
+    "jin_augmentation": null,
+    "k": 1,
+    "total_cases": 52,
+    "compiled": 52,
+    "fixed": 4,
+    "compile_rate_pct": 100.0,
+    "pass_at_k_pct": 7.7
+  },
+  {
+    "file": "mistral_PerfectLoc.txt",
+    "timestamp": "2026-04-17 06:23:47",
+    "model": "mistral",
+    "ablation": null,
+    "jin_augmentation": null,
+    "k": 1,
+    "total_cases": 52,
+    "compiled": 52,
+    "fixed": 0,
+    "compile_rate_pct": 100.0,
+    "pass_at_k_pct": 0.0
+  }
+]

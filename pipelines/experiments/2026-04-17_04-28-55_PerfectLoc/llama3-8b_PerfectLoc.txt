@@ -1,0 +1,2173 @@
+PERFECT LOCALISATION PIPELINE RUN
+============================================================
+Timestamp       : 2026-04-17 04:32:42
+Model           : llama3:8b
+Augmentation    : perfect localisation (ground truth)
+Candidates (k)  : 5
+Temperature     : 0.8
+Seed            : 42
+Ollama host     : http://100.97.159.90:11434
+Base system prompt: You are a C/CPP code program repair expert
+Total CVE cases : 52
+============================================================
+============================================================
+[1/52] ClusterLabs___libqb@1bbaa929b77113532785c408dd1b41cd0521ffc8
+SHA: 1bbaa929b77113532785c408dd1b41cd0521ffc8
+Perfect localisation:
+  category : single_hunk
+  line   60: 	msg_len = qb_vsnprintf_serialize(chunk, max_size, cs->format, ap);
+  line   61: 	if (msg_len >= max_size) {
+  line   62: 	    chunk = msg_len_pt + sizeof(uint32_t); /* Reset */
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 60: score=1.0000 | 	msg_len = qb_vsnprintf_serialize(chunk, max_size, cs->format, ap);
+- line 61: score=1.0000 | 	if (msg_len >= max_size) {
+- line 62: score=1.0000 | 	    chunk = msg_len_pt + sizeof(uint32_t); /* Reset */
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static void
+_blackbox_vlogger(int32_t target,
+		  struct qb_log_callsite *cs, struct timespec *timestamp, va_list ap)
+{
+	size_t max_size;
+	size_t actual_size;
+	uint32_t fn_size;
+	char *chunk;
+	char *msg_len_pt;
+	uint32_t...
+
+Extracted patch:
+// corrected hunk
+	msg_len = qb_vsnprintf_serialize(chunk, max_size, cs->format, ap);
+	if (msg_len >= max_size) {
+        // Instead of simply resetting the chunk pointer and truncating the message,
+        // we need to handle this case correctly. One way is to log an error message.
+		qb_util_perror(LOG_ERR, "Log message too long to be stored in the blackbox");
+        return;  // Abort logging
+	}
+
+Compile : True
+Fixed   : False
+============================================================
+[2/52] DaveGamble___cJSON@be749d7efa7c9021da746e685bd6dec79f9dd99b
+SHA: be749d7efa7c9021da746e685bd6dec79f9dd99b
+Perfect localisation:
+  category : multi_hunk
+  line   13:         while ((current_element != NULL) && (strcmp(name, current_element->string) != 0))
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 13: score=1.0000 |         while ((current_element != NULL) && (strcmp(name, current_element->string) != 0))
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static cJSON *get_object_item(const cJSON * const object, const char * const name, const cJSON_bool case_sensitive)
+{
+    cJSON *current_element = NULL;
+
+    if ((object == NULL) || (name == NULL))
+    {
+        return N...
+
+Extracted patch:
+// Corrected line:
+while ((current_element != NULL) && (current_element->string != NULL) && (strcmp(name, current_element->string) != 0))
+
+Compile : True
+Fixed   : False
+============================================================
+[3/52] OpenIDC___cjose@7325e9a5e71e2fc0e350487ecac7d84acdf0ed5e
+SHA: 7325e9a5e71e2fc0e350487ecac7d84acdf0ed5e
+Perfect localisation:
+  category : single_line
+  line   46:     // set the expected GCM-mode authentication tag
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 46: score=1.0000 |     // set the expected GCM-mode authentication tag
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static bool _cjose_jwe_decrypt_dat_aes_gcm(cjose_jwe_t *jwe, cjose_err *err)
+{
+    EVP_CIPHER_CTX *ctx = NULL;
+
+    // make sure we have an enc header
+    json_t *enc_obj = json_object_get(jwe->hdr, CJOSE_HDR_ENC);
+    i...
+
+Extracted patch:
+// set the expected GCM-mode authentication tag
+    if (EVP_CIPHER_CTX_ctrl(ctx, CJOSE_EVP_CTRL_GCM_SET_TAG, jwe->enc_auth_tag.raw_len, jwe->enc_auth_tag.raw) != 1)
+    {
+        CJOSE_ERROR(err, CJOSE_ERR_CRYPTO);
+        goto _cjose_jwe_decrypt_dat_aes_gcm_fail;
+    }
+
+Compile : True
+Fixed   : True
+============================================================
+[4/52] VirusTotal___yara@4a342f01e5439b9bb901aff1c6c23c536baeeb3f
+SHA: 4a342f01e5439b9bb901aff1c6c23c536baeeb3f
+Perfect localisation:
+  category : multi_hunk
+  line   18:     count = yr_max(64, (index + 1) * 2);
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 18: score=1.0000 |     count = yr_max(64, (index + 1) * 2);
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+int yr_object_array_set_item(
+    YR_OBJECT* object,
+    YR_OBJECT* item,
+    int index)
+{
+  YR_OBJECT_ARRAY* array;
+
+  int i;
+  int count;
+
+  assert(index >= 0);
+  assert(object->type == OBJECT_TYPE_ARRAY);
+
+  array = o...
+
+Extracted patch:
+int yr_object_array_set_item(
+    YR_OBJECT* object,
+    YR_OBJECT* item,
+    int index)
+{
+  YR_OBJECT_ARRAY* array;
+
+  int i;
+  int count;
+
+  assert(index >= 0);
+  assert(object->type == OBJECT_TYPE_ARRAY);
+
+  array = object_as_array(object);
+
+  if (array->items == NULL)
+  {
+    count = yr_max(64, (index + 1) * 2);
+
+    array->items = (YR_ARRAY_ITEMS*) yr_malloc(
+        sizeof(YR_ARRAY_ITEMS) + count * sizeof(YR_OBJECT*));
+
+    if (array->items == NULL)
+      return ERROR_INSUFFICIENT_MEMORY;
+
+    memset(array->items->objects, 0, count * sizeof(YR_OBJECT*));
+
+    array->items->count = count;
+  }
+  else if (index >= array->items->count)
+  {
+    if (array->items != NULL)
+    {
+      YR_ARRAY_ITEMS* old_array_items = array->items;
+
+      // Reallocate and copy the objects
+      count = array->items->count * 2;
+      array->items = (YR_ARRAY_ITEMS*) yr_realloc(
+          old_array_items,
+          sizeof(YR_ARRAY_ITEMS) + count * sizeof(YR_OBJECT*));
+
+      if (array->items == NULL)
+        return ERROR_INSUFFICIENT_MEMORY;
+
+      for (i = array->items->count; i < count; i++)
+        array->items->objects[i] = NULL;
+
+      // Free the old memory
+      yr_free(old_array_items);
+
+      array->items->count = count;
+    }
+  }
+
+  item->parent = object;
+  array->items->objects[index] = item;
+
+  return ERROR_SUCCESS;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[5/52] Yeraze___ytnef@3cb0f914d6427073f262e1b2b5fd973e3043cdf7
+SHA: 3cb0f914d6427073f262e1b2b5fd973e3043cdf7
+Perfect localisation:
+  category : single_line
+  line   56:     data = calloc(size, sizeof(BYTE));
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 56: score=1.0000 |     data = calloc(size, sizeof(BYTE));
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+int TNEFParse(TNEFStruct *TNEF) {
+  WORD key;
+  DWORD type;
+  DWORD size;
+  DWORD signature;
+  BYTE *data;
+  WORD checksum, header_checksum;
+  int i;
+
+  if (TNEF->IO.ReadProc == NULL) {
+    printf("ERROR: Setup incorrect...
+
+Extracted patch:
+checksum = SwapWord((BYTE *)&checksum, sizeof(WORD));
+
+Compile : True
+Fixed   : True
+============================================================
+[6/52] curl___curl@1890d59905414ab84a35892b2e45833654aa5c13
+SHA: 1890d59905414ab84a35892b2e45833654aa5c13
+Perfect localisation:
+  category : single_hunk
+  line   10:     if('%' == *ptr) {
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 10: score=1.0000 |     if('%' == *ptr) {
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+void ourWriteOut(CURL *curl, struct OutStruct *outs, const char *writeinfo)
+{
+  FILE *stream = stdout;
+  const char *ptr = writeinfo;
+  char *stringp = NULL;
+  long longinfo;
+  double doubleinfo;
+
+  while(ptr && *ptr) {
+...
+
+Extracted patch:
+// corrected vulnerable hunk
+    if(ptr[1] == '%' && ptr[2] == '{') {
+      bool match = FALSE;
+      end = strchr(ptr, '}');
+      ptr += 2; /* pass the % and the { */
+      if(!end) {
+        fputs("%{", stream);
+        continue;
+      }
+      keepit = *end;
+      *end = 0; /* zero terminate */
+      // ... (rest of the code remains the same)
+
+Compile : True
+Fixed   : False
+============================================================
+[7/52] dlundquist___sniproxy@f8d9a433fe22ab2fa15c00179048ab02ae23d583
+SHA: f8d9a433fe22ab2fa15c00179048ab02ae23d583
+Perfect localisation:
+  category : single_line
+  line   89: 
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 89: score=1.0000 | 
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+struct Address *
+new_address(const char *hostname_or_ip) {
+    union {
+        struct sockaddr a;
+        struct sockaddr_in in;
+        struct sockaddr_in6 in6;
+        struct sockaddr_un un;
+        struct sockaddr_sto...
+
+Extracted patch:
+return new_address_sa(&s.a, sizeof(s.in6));
+
+Compile : True
+Fixed   : True
+============================================================
+[8/52] jqlang___jq@71c2ab509a8628dbbad4bc7b3f98a64aa90d3297
+SHA: 71c2ab509a8628dbbad4bc7b3f98a64aa90d3297
+Perfect localisation:
+  category : single_hunk
+  line   20:     int len = jvp_dec_number_ptr(n)->digits + 14;
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 20: score=1.0000 |     int len = jvp_dec_number_ptr(n)->digits + 14;
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static const char* jvp_literal_number_literal(jv n) {
+  assert(JVP_HAS_FLAGS(n, JVP_FLAGS_NUMBER_LITERAL));
+  decNumber *pdec = jvp_dec_number_ptr(n);
+  jvp_literal_number* plit = jvp_literal_number_ptr(n);
+
+  if (decNum...
+
+Extracted patch:
+int len = jvp_dec_number_ptr(n)->digits + 14;
+
+Compile : True
+Fixed   : False
+============================================================
+[9/52] libgd___libgd@1846f48e5fcdde996e7c27a4bbac5d0aef183e4b
+SHA: 1846f48e5fcdde996e7c27a4bbac5d0aef183e4b
+Perfect localisation:
+  category : single_line
+  line    9: 	if (overflow2(sizeof (unsigned char *), sy)) {
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 9: score=1.0000 | 	if (overflow2(sizeof (unsigned char *), sy)) {
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+BGD_DECLARE(gdImagePtr) gdImageCreate (int sx, int sy)
+{
+	int i;
+	gdImagePtr im;
+
+	if (overflow2(sx, sy)) {
+		return NULL;
+	}
+	if (overflow2(sizeof (unsigned char *), sy)) {
+		return NULL;
+	}
+	if (overflow2(sizeof (unsig...
+
+Extracted patch:
+(im->pixels[i] = (unsigned char *) gdCalloc (sx, sizeof (unsigned char)))
+
+Compile : True
+Fixed   : False
+============================================================
+[10/52] libgd___libgd@2bb97f407c1145c850416a3bfbcc8cf124e68a19
+SHA: 2bb97f407c1145c850416a3bfbcc8cf124e68a19
+Perfect localisation:
+  category : single_line
+  line  106: 		};
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 106: score=1.0000 | 		};
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+_gd2GetHeader (gdIOCtxPtr in, int *sx, int *sy,
+               int *cs, int *vers, int *fmt, int *ncx, int *ncy,
+               t_chunk_info ** chunkIdx)
+{
+	int i;
+	int ch;
+	char id[5];
+	t_chunk_info *cidx;
+	i...
+
+Extracted patch:
+The vulnerability was removed from the code, but I can help you identify where the issue was located.
+
+Based on the localisation signal, the vulnerable line is:
+
+`line 106: score=1.0000 | 		};`
+
+This line appears to be an empty block statement (`};`) which doesn't seem to do anything significant in the context of the `gd2_getheader` function. It's possible that this was a leftover piece of code or a mistake.
+
+The correct fix would depend on the specific requirements and functionality you want to achieve, but if I had to provide a commit message for the infill location, it might look something like:
+
+"Removed unnecessary block statement from gd2_getheader function"
+
+Please note that this is just an educated guess based on limited information. If you have more context or details about the vulnerability, I'd be happy to help with a more specific fix.
+
+Compile : True
+Fixed   : False
+============================================================
+[11/52] libgd___libgd@58b6dde319c301b0eae27d12e2a659e067d80558
+SHA: 58b6dde319c301b0eae27d12e2a659e067d80558
+Perfect localisation:
+  category : single_hunk
+  line   93: 			
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 93: score=1.0000 | 			
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+int read_image_tga( gdIOCtx *ctx, oTga *tga )
+{
+	int pixel_block_size = (tga->bits / 8);
+	int image_block_size = (tga->width * tga->height) * pixel_block_size;
+	int* decompression_buffer = NULL;
+	unsigned char* conversio...
+
+Extracted patch:
+if (tga->bitmap != NULL) {
+    gdFree(tga->bitmap);
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[12/52] libgd___libgd@69d2fd2c597ffc0c217de1238b9bf4d4bceba8e6
+SHA: 69d2fd2c597ffc0c217de1238b9bf4d4bceba8e6
+Perfect localisation:
+  category : single_line
+  line   92: 		nc = (*ncx) * (*ncy);
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 92: score=1.0000 | 		nc = (*ncx) * (*ncy);
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+_gd2GetHeader (gdIOCtxPtr in, int *sx, int *sy,
+               int *cs, int *vers, int *fmt, int *ncx, int *ncy,
+               t_chunk_info ** chunkIdx)
+{
+	int i;
+	int ch;
+	char id[5];
+	t_chunk_info *cidx;
+	i...
+
+Extracted patch:
+nc = std::max(1, (*ncx) * (*ncy));
+
+Compile : True
+Fixed   : False
+============================================================
+[13/52] libgd___libgd@77f619d48259383628c3ec4654b1ad578e9eb40e
+SHA: 77f619d48259383628c3ec4654b1ad578e9eb40e
+Perfect localisation:
+  category : single_hunk
+  line    9: 	if (border < 0) {
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 9: score=1.0000 | 	if (border < 0) {
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+BGD_DECLARE(void) gdImageFillToBorder (gdImagePtr im, int x, int y, int border, int color)
+{
+	int lastBorder;
+	/* Seek left */
+	int leftLimit, rightLimit;
+	int i;
+	int restoreAlphaBleding;
+
+	if (border < 0) {
+		/* Refuse...
+
+Extracted patch:
+if (border < 0) {
+
+Compile : True
+Fixed   : False
+============================================================
+[14/52] libuv___libuv@3530bcc30350d4a6ccf35d2f7b33e23292b9de70
+SHA: 3530bcc30350d4a6ccf35d2f7b33e23292b9de70
+Perfect localisation:
+  category : single_line
+  line    8:   ds = d;
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 8: score=1.0000 |   ds = d;
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+ssize_t uv__idna_toascii(const char* s, const char* se, char* d, char* de) {
+  const char* si;
+  const char* st;
+  unsigned c;
+  char* ds;
+  int rc;
+
+  ds = d;
+
+  si = s;
+  while (si < se) {
+    st = si;
+    c = uv__utf8...
+
+Extracted patch:
+ssize_t uv__idna_toascii(const char* s, const char* se, char* d, char* de) {
+    // ... (other code remains the same)
+
+    if (d >= de) {
+        return UV_EINVAL;
+    }
+
+    *d++ = '';
+    return d - ds;  /* Number of bytes written. */
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[15/52] lua___lua@1f3c6f4534c6411313361697d98d1145a1f030fa
+SHA: 1f3c6f4534c6411313361697d98d1145a1f030fa
+Perfect localisation:
+  category : single_line
+  line    9:     codestring(&key, varname);  /* key is variable name */
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 9: score=1.0000 |     codestring(&key, varname);  /* key is variable name */
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static void singlevar (LexState *ls, expdesc *var) {
+  TString *varname = str_checkname(ls);
+  FuncState *fs = ls->fs;
+  singlevaraux(fs, varname, var, 1);
+  if (var->k == VVOID) {  /* global name? */
+    expdesc key;
+  ...
+
+Extracted patch:
+codestring(&key, varname);  /* key is variable name */
+
+Compile : True
+Fixed   : True
+============================================================
+[16/52] nginx___njs@2e00e95473861846aa8538be87db07699d9f676d
+SHA: 2e00e95473861846aa8538be87db07699d9f676d
+Perfect localisation:
+  category : single_line
+  line   81:             }
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 81: score=1.0000 |             }
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static njs_int_t
+njs_array_prototype_splice(njs_vm_t *vm, njs_value_t *args, njs_uint_t nargs,
+    njs_index_t unused)
+{
+    int64_t      i, n, start, length, items, delta, delete;
+    njs_int_t    ret;
+    njs_value_t  ...
+
+Extracted patch:
+// Corrected code for handling array operations
+
+Compile : True
+Fixed   : False
+============================================================
+[17/52] nginx___njs@5c6130a2a0b4c41ab415f6b8992aa323636338b9
+SHA: 5c6130a2a0b4c41ab415f6b8992aa323636338b9
+Perfect localisation:
+  category : single_hunk
+  line   21:     njs_set_number(setval, num);
+  line   22: 
+  line   23:     return NJS_OK;
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 21: score=1.0000 |     njs_set_number(setval, num);
+- line 22: score=1.0000 | 
+- line 23: score=1.0000 |     return NJS_OK;
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+njs_int_t
+njs_typed_array_set_value(njs_vm_t *vm, njs_typed_array_t *array,
+    uint32_t index, njs_value_t *setval)
+{
+    double              num;
+    njs_int_t           ret;
+    njs_array_buffer_t  *buffer;
+
+    ret =...
+
+Extracted patch:
+// Corrected hunk:
+    ret = njs_value_to_number(vm, setval, &num);
+    if (njs_slow_path(ret != NJS_OK)) {
+        return ret;
+    }
+
+    // Store the value locally
+    double local_num = num;
+
+    buffer = njs_typed_array_writable(vm, array);
+    if (njs_slow_path(buffer == NULL)) {
+        return NJS_ERROR;
+    }
+
+    njs_typed_array_prop_set(vm, array, index, local_num);  // Use the stored value
+
+Compile : True
+Fixed   : False
+============================================================
+[18/52] nginx___njs@81af26364c21c196dd21fb5e14c7fa9ce7debd17
+SHA: 81af26364c21c196dd21fb5e14c7fa9ce7debd17
+Perfect localisation:
+  category : single_line
+  line    8:     njs_set_array(&value, array);
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 8: score=1.0000 |     njs_set_array(&value, array);
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+njs_int_t
+njs_array_convert_to_slow_array(njs_vm_t *vm, njs_array_t *array)
+{
+    uint32_t           i, length;
+    njs_value_t        index, value;
+    njs_object_prop_t  *prop;
+
+    njs_set_array(&value, array);
+    ar...
+
+Extracted patch:
+njs_array_t *njs_array_convert_to_slow_array(njs_vm_t *vm, njs_array_t *array)
+{
+    uint32_t           i, length;
+    njs_value_t        value;
+
+    array->object.fast_array = 0;
+
+    length = array->length;
+
+    // Allocate memory for the array
+    njs_set_array(&value, array);
+
+    for (i = 0; i < length; i++) {
+        if (njs_is_valid(&array->start[i])) {
+            // ...
+
+Compile : True
+Fixed   : False
+============================================================
+[19/52] nginx___njs@8b39afdad9a0761e0a5d4af1a762bd9a6daef572
+SHA: 8b39afdad9a0761e0a5d4af1a762bd9a6daef572
+Perfect localisation:
+  category : single_hunk
+  line  154:     if (njs_fast_path(fast_path)) {
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 154: score=1.0000 |     if (njs_fast_path(fast_path)) {
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static njs_int_t
+njs_array_prototype_sort(njs_vm_t *vm, njs_value_t *args, njs_uint_t nargs,
+    njs_index_t unused)
+{
+    int64_t                i, und, len, nlen, length;
+    njs_int_t              ret, fast_path;
+    ...
+
+Extracted patch:
+if (njs_fast_path(fast_path)) {
+    array = njs_array(this);
+    start = array->start;
+
+    // Ensure 'p' points to a valid memory location before accessing it.
+    p = slots;
+    und = 0;
+    for (i = 0; i < length; i++) {
+        if (!njs_is_valid(&start[i])) {
+            fast_path = 0;
+            njs_mp_free(vm->mem_pool, slots);
+            slots = NULL;
+            goto slow_path;
+        }
+
+        // Initialize 'p' with valid values
+        p->value = start[i];
+        p->pos = i;
+        p->str = NULL;
+        p++;
+    }
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[20/52] nginx___njs@ab1702c7af9959366a5ddc4a75b4357d4e9ebdc1
+SHA: ab1702c7af9959366a5ddc4a75b4357d4e9ebdc1
+Perfect localisation:
+  category : single_hunk
+  line   13:         length = dir->length;
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 13: score=1.0000 |         length = dir->length;
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static njs_int_t
+njs_module_path(njs_vm_t *vm, const njs_str_t *dir, njs_module_info_t *info)
+{
+    char        *p;
+    size_t      length;
+    njs_bool_t  trail;
+    char        src[NJS_MAX_PATH + 1];
+
+    trail = 0;
+  ...
+
+Extracted patch:
+p = njs_cpymem(p, dir->start, dir->length + 1);
+
+Compile : True
+Fixed   : False
+============================================================
+[21/52] nginx___njs@d457c9545e7e71ebb5c0479eb16b9d33175855e2
+SHA: d457c9545e7e71ebb5c0479eb16b9d33175855e2
+Perfect localisation:
+  category : single_line
+  line   33:     };
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 33: score=1.0000 |     };
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static njs_jump_off_t
+njs_vmcode_typeof(njs_vm_t *vm, njs_value_t *value, njs_value_t *invld)
+{
+    /* ECMAScript 5.1: null, array and regexp are objects. */
+
+    static const njs_value_t  *types[NJS_VALUE_TYPE_MAX] = {
+...
+
+Extracted patch:
+static const njs_value_t* types[] = {
+    &njs_string_object,
+    // ... all other types ...
+};
+
+Compile : True
+Fixed   : False
+============================================================
+[22/52] nginx___njs@f65981b0b8fcf02d69a40bc934803c25c9f607ab
+SHA: f65981b0b8fcf02d69a40bc934803c25c9f607ab
+Perfect localisation:
+  category : single_hunk
+  line   17:             value = array->start;
+  line   18:             length = array->length;
+  line   19: 
+  line   20:             do {
+  line   21:                 njs_set_invalid(value);
+  line   22:                 value++;
+  line   23:                 length--;
+  line   24:             } while (length != 0);
+  line   25: 
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 17: score=1.0000 |             value = array->start;
+- line 18: score=1.0000 |             length = array->length;
+- line 19: score=1.0000 | 
+- line 20: score=1.0000 |             do {
+- line 21: score=1.0000 |                 njs_set_invalid(value);
+- line 22: score=1.0000 |                 value++;
+- line 23: score=1.0000 |                 length--;
+- line 24: score=1.0000 |             } while (length != 0);
+- line 25: score=1.0000 | 
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static njs_jump_off_t
+njs_vmcode_array(njs_vm_t *vm, u_char *pc)
+{
+    uint32_t            length;
+    njs_array_t         *array;
+    njs_value_t         *value;
+    njs_vmcode_array_t  *code;
+
+    code = (njs_vmcode_ar...
+
+Extracted patch:
+// Vulnerable hunk
+            value = array->start;
+            length = array->length;
+
+            do {
+                if (value >= array->start + array->length) break; // Add this check
+                njs_set_invalid(value);
+                value++;
+                length--;
+            } while (length != 0);
+
+Compile : True
+Fixed   : False
+============================================================
+[23/52] php___php-src@1cda0d7c2ffb62d8331c64e703131d9cabdc03ea
+SHA: 1cda0d7c2ffb62d8331c64e703131d9cabdc03ea
+Perfect localisation:
+  category : single_hunk
+  line   26: 				return php_ifd_get32s(value, motorola_intel) / s_den;
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 26: score=1.0000 | 				return php_ifd_get32s(value, motorola_intel) / s_den;
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static size_t exif_convert_any_to_int(void *value, int format, int motorola_intel TSRMLS_DC)
+{
+	int 		s_den;
+	unsigned 	u_den;
+
+	switch(format) {
+		case TAG_FMT_SBYTE:     return *(signed char *)value;
+		case TAG_FMT_BYT...
+
+Extracted patch:
+case TAG_FMT_SRATIONAL:
+    s_den = php_ifd_get32s(4+(char *)value, motorola_intel);
+    if (s_den == 0) {
+        // Handle division by zero error
+        // For now, just return 0 as per the original code
+        return 0;
+    } else {
+        return php_ifd_get32s(value, motorola_intel) / s_den;
+    }
+
+Compile : True
+Fixed   : False
+============================================================
+[24/52] php___php-src@28a6ed9f9a36b9c517e4a8a429baf4dd382fc5d5
+SHA: 28a6ed9f9a36b9c517e4a8a429baf4dd382fc5d5
+Perfect localisation:
+  category : single_hunk
+  line   23: 			zval_ptr_dtor(value);
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 23: score=1.0000 | 			zval_ptr_dtor(value);
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+SPL_METHOD(SplDoublyLinkedList, offsetSet)
+{
+	zval                  *zindex, *value;
+	spl_dllist_object     *intern;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "zz", &zindex, &value) == FAILURE) {
+		return;
+	}
+
+	intern...
+
+Extracted patch:
+// Fix for bug #71735 (Double-free in SplDoublyLinkedList::offsetSet)
+element = spl_ptr_llist_offset(intern->llist, index, intern->flags & SPL_DLLIST_IT_LIFO);
+
+if (element != NULL) {
+    /* call dtor on the old element as in spl_ptr_llist_pop */
+    if (intern->llist->dtor) {
+        intern->llist->dtor(element);
+    }
+
+    ZVAL_COPY_VALUE(&element->data, value); // Fix: Do not free(value) here
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[25/52] php___php-src@863d37ea66d5c960db08d6f4a2cbd2518f0f80d1
+SHA: 863d37ea66d5c960db08d6f4a2cbd2518f0f80d1
+Perfect localisation:
+  category : single_hunk
+  line    8: 	if (border < 0) {
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 8: score=1.0000 | 	if (border < 0) {
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+void gdImageFillToBorder (gdImagePtr im, int x, int y, int border, int color)
+{
+	int lastBorder;
+	/* Seek left */
+	int leftLimit = -1, rightLimit;
+	int i, restoreAlphaBlending = 0;
+
+	if (border < 0) {
+		/* Refuse to fill...
+
+Extracted patch:
+void gdImageFillToBorder (gdImagePtr im, int x, int y, int border, int color)
+{
+    // ...
+    
+    if (border < 0) {
+        return; // Do not fill to a non-solid border
+    }
+    
+    // Rest of the code remains the same
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[26/52] php___php-src@b88393f08a558eec14964a55d3c680fe67407712
+SHA: b88393f08a558eec14964a55d3c680fe67407712
+Perfect localisation:
+  category : single_hunk
+  line    7: 			if (((st_entry *)stack->elements[i])->data)	{
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 7: score=1.0000 | 			if (((st_entry *)stack->elements[i])->data)	{
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int wddx_stack_destroy(wddx_stack *stack)
+{
+	register int i;
+
+	if (stack->elements) {
+		for (i = 0; i < stack->top; i++) {
+			if (((st_entry *)stack->elements[i])->data)	{
+				zval_ptr_dtor(&((st_entry *)stack->el...
+
+Extracted patch:
+static int wddx_stack_destroy(wddx_stack *stack)
+{
+    register int i;
+
+    if (stack->elements) {
+        for (i = 0; i < stack->top; i++) {
+            st_entry *entry = stack->elements[i];
+
+            if (entry && entry->data) {
+                zval_ptr_dtor(&entry->data);
+            }
+
+            if (entry && entry->varname) {
+                efree(entry->varname);
+            }
+
+            efree(stack->elements[i]);
+        }
+
+        efree(stack->elements);
+    }
+
+    return SUCCESS;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[27/52] redis___hiredis@76a7b10005c70babee357a7d0f2becf28ec7ed1e
+SHA: 76a7b10005c70babee357a7d0f2becf28ec7ed1e
+Perfect localisation:
+  category : single_line
+  line    9:         r->element = hi_calloc(elements,sizeof(redisReply*));
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 9: score=1.0000 |         r->element = hi_calloc(elements,sizeof(redisReply*));
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static void *createArrayObject(const redisReadTask *task, size_t elements) {
+    redisReply *r, *parent;
+
+    r = createReplyObject(task->type);
+    if (r == NULL)
+        return NULL;
+
+    if (elements > 0) {
+        r-...
+
+Extracted patch:
+if (elements > 0) {
+    r->element = hi_calloc(elements,sizeof(redisReply*));
+    if (r->element == NULL) {
+        freeReplyObject(r);
+        return NULL;
+    }
+    // Initialize the memory allocated for 'r->element'
+    for(size_t i = 0; i < elements; i++) {
+        ((redisReply **)r->element)[i] = malloc(sizeof(redisReply));
+        if(((redisReply **)r->element)[i] == NULL) {
+            freeReplyObject(r);
+            return NULL;
+        }
+    }
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[28/52] redis___redis@bc7fe41e5857a0854d524e2a63a028e9394d2a5c
+SHA: bc7fe41e5857a0854d524e2a63a028e9394d2a5c
+Perfect localisation:
+  category : single_line
+  line   10:     if ((o = hashTypeLookupWriteOrCreate(c,c->argv[1])) == NULL) return;
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 10: score=1.0000 |     if ((o = hashTypeLookupWriteOrCreate(c,c->argv[1])) == NULL) return;
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+void hincrbyfloatCommand(client *c) {
+    long double value, incr;
+    long long ll;
+    robj *o;
+    sds new;
+    unsigned char *vstr;
+    unsigned int vlen;
+
+    if (getLongDoubleFromObjectOrReply(c,c->argv[3],&incr,NU...
+
+Extracted patch:
+if ((o = hashTypeLookupWriteOrCreate(c,c->argv[1])) == NULL) return;
+
+Compile : True
+Fixed   : True
+============================================================
+[29/52] sqlite___sqlite@54d501092d88c0cf89bec4279951f548fb0b8618
+SHA: 54d501092d88c0cf89bec4279951f548fb0b8618
+Perfect localisation:
+  category : single_line
+  line  102:       nPath = (int)strlen(zPath);
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 102: score=1.0000 |       nPath = (int)strlen(zPath);
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int zipfileUpdate(
+  sqlite3_vtab *pVtab, 
+  int nVal, 
+  sqlite3_value **apVal, 
+  sqlite_int64 *pRowid
+){
+  ZipfileTab *pTab = (ZipfileTab*)pVtab;
+  int rc = SQLITE_OK;             /* Return Code */
+  ZipfileEnt...
+
+Extracted patch:
+// Corrected hunk:
+  zPath = (const char*)sqlite3_value_text(apVal[2]);
+  if(zPath) {
+    nPath = (int)strlen(zPath);
+  } else {
+    // Handle the case where zPath is NULL
+  }
+
+Compile : True
+Fixed   : False
+============================================================
+[30/52] the-tcpdump-group___tcpdump@061e7371a944588f231cb1b66d6fb070b646e376
+SHA: 061e7371a944588f231cb1b66d6fb070b646e376
+Perfect localisation:
+  category : single_hunk
+  line  113: 			if (len < 20)
+  line  114: 				ND_PRINT((ndo," len=%d [bad: < 20]", len));
+  line  115: 			else {
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 113: score=1.0000 | 			if (len < 20)
+- line 114: score=1.0000 | 				ND_PRINT((ndo," len=%d [bad: < 20]", len));
+- line 115: score=1.0000 | 			else {
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static const u_char *
+ikev1_id_print(netdissect_options *ndo, u_char tpay _U_,
+	       const struct isakmp_gen *ext, u_int item_len,
+	       const u_char *ep _U_, uint32_t phase, uint32_t doi _U_,
+	       uint32_t proto ...
+
+Extracted patch:
+if (len < 20)
+				ND_PRINT((ndo," len=%d [bad: < 20]", len));
+			else {
+
+Compile : True
+Fixed   : False
+============================================================
+[31/52] the-tcpdump-group___tcpdump@29e5470e6ab84badbc31f4532bb7554a796d9d52
+SHA: 29e5470e6ab84badbc31f4532bb7554a796d9d52
+Perfect localisation:
+  category : single_line
+  line   44: 	ND_PRINT((ndo, ", Flags [%s]",
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 44: score=1.0000 | 	ND_PRINT((ndo, ", Flags [%s]",
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+void
+bootp_print(netdissect_options *ndo,
+	    register const u_char *cp, u_int length)
+{
+	register const struct bootp *bp;
+	static const u_char vm_cmu[4] = VM_CMU;
+	static const u_char vm_rfc1048[4] = VM_RFC1048;
+
+	bp =...
+
+Extracted patch:
+ND_PRINT((ndo, ", Flags [%s]", bittok2str(bootp_flag_values, "none", EXTRACT_16BITS(&bp->bp_flags)));
+
+Compile : True
+Fixed   : False
+============================================================
+[32/52] the-tcpdump-group___tcpdump@2d669862df7cd17f539129049f6fb70d17174125
+SHA: 2d669862df7cd17f539129049f6fb70d17174125
+Perfect localisation:
+  category : single_hunk
+  line   10: 	ND_TCHECK(dp->ip6f_offlg);
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 10: score=1.0000 | 	ND_TCHECK(dp->ip6f_offlg);
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+int
+frag6_print(netdissect_options *ndo, register const u_char *bp, register const u_char *bp2)
+{
+	register const struct ip6_frag *dp;
+	register const struct ip6_hdr *ip6;
+
+	dp = (const struct ip6_frag *)bp;
+	ip6 = (cons...
+
+Extracted patch:
+int
+frag6_print(netdissect_options *ndo, register const u_char *bp, register const u_char *bp2)
+{
+	register const struct ip6_frag *dp;
+	register const struct ip6_hdr *ip6;
+
+	dp = (const struct ip6_frag *)bp;
+	ip6 = (const struct ip6_hdr *)bp2;
+
+	if (!dp || !dp->ip6f_offlg) {
+		return -1; // or handle this case as needed
+	}
+
+	if (ndo->ndo_vflag) {
+		ND_PRINT((ndo, "frag (0x%08x:%d|%ld)",
+		       EXTRACT_32BITS(&dp->ip6f_ident),
+		       EXTRACT_16BITS(&dp->ip6f_offlg) & IP6F_OFF_MASK,
+		       sizeof(struct ip6_hdr) + EXTRACT_16BITS(&ip6->ip6_plen) -
+			       (long)(bp - bp2) - sizeof(struct ip6_frag)));
+	} else {
+		ND_PRINT((ndo, "frag (%d|%ld)",
+		       EXTRACT_16BITS(&dp->ip6f_offlg) & IP6F_OFF_MASK,
+		       sizeof(struct ip6_hdr) + EXTRACT_16BITS(&ip6->ip6_plen) -
+			       (long)(bp - bp2) - sizeof(struct ip6_frag)));
+	}
+
+	/* it is meaningless to decode non-first fragment */
+	if ((EXTRACT_16BITS(&dp->ip6f_offlg) & IP6F_OFF_MASK) != 0)
+		return -1;
+	else
+	{
+		ND_PRINT((ndo, " "));
+		return sizeof(struct ip6_frag);
+	}
+trunc:
+	ND_PRINT((ndo, "[|frag]"));
+	return -1;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[33/52] the-tcpdump-group___tcpdump@571a6f33f47e7a2394fa08f925e534135c29cf1e
+SHA: 571a6f33f47e7a2394fa08f925e534135c29cf1e
+Perfect localisation:
+  category : single_hunk
+  line    8:     for (i = 1; i <= SYSTEM_ID_LEN; i++) {
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 8: score=1.0000 |     for (i = 1; i <= SYSTEM_ID_LEN; i++) {
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static char *
+isis_print_id(const uint8_t *cp, int id_len)
+{
+    int i;
+    static char id[sizeof("xxxx.xxxx.xxxx.yy-zz")];
+    char *pos = id;
+
+    for (i = 1; i <= SYSTEM_ID_LEN; i++) {
+        snprintf(pos, sizeof(id)...
+
+Extracted patch:
+static char *
+isis_print_id(const uint8_t *cp, int id_len)
+{
+    int i;
+    static char id[sizeof("xxxx.xxxx.xxxx.yy-zz")];
+    char *pos = id;
+
+    for (i = 0; i < SYSTEM_ID_LEN; i++) { // Fixed loop counter
+        snprintf(pos, sizeof(id) - (pos - id), "%02x", *cp++);
+	pos += strlen(pos);
+	if (i == 1 || i == 3)
+	    *pos++ = '.';
+    }
+    if (id_len >= NODE_ID_LEN) {
+        snprintf(pos, sizeof(id) - (pos - id), ".%02x", *cp++);
+	pos += strlen(pos);
+    }
+    if (id_len == LSP_ID_LEN)
+        snprintf(pos, sizeof(id) - (pos - id), "-%02x", *cp);
+    return (id);
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[34/52] the-tcpdump-group___tcpdump@5d0d76e88ee2d3236d7e032589d6f1d4ec5f7b1e
+SHA: 5d0d76e88ee2d3236d7e032589d6f1d4ec5f7b1e
+Perfect localisation:
+  category : multi_hunk
+  line   62:                 ND_TCHECK2(*tptr, 4);
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 62: score=1.0000 |                 ND_TCHECK2(*tptr, 4);
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+isis_print_is_reach_subtlv(netdissect_options *ndo,
+                           const uint8_t *tptr, u_int subt, u_int subl,
+                           const char *ident)
+{
+        u_int te_class,priority_level...
+
+Extracted patch:
+ND_TCHECK2(*tptr, 4);
+
+Compile : True
+Fixed   : False
+============================================================
+[35/52] the-tcpdump-group___tcpdump@6f5ba2b651cd9d4b7fa8ee5c4f94460645877c45
+SHA: 6f5ba2b651cd9d4b7fa8ee5c4f94460645877c45
+Perfect localisation:
+  category : single_line
+  line   19:     }
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 19: score=1.0000 |     }
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+name_len(netdissect_options *ndo,
+         const unsigned char *s, const unsigned char *maxbuf)
+{
+    const unsigned char *s0 = s;
+    unsigned char c;
+
+    if (s >= maxbuf)
+	return(-1);	/* name goes past the ...
+
+Extracted patch:
+static int
+name_len(netdissect_options *ndo,
+         const unsigned char *s, const unsigned char *maxbuf)
+{
+    const unsigned char *s0 = s;
+    unsigned char c;
+
+    if (s >= maxbuf)
+        return(-1);	/* name goes past the end of the buffer */
+    ND_TCHECK2(*s, 1);
+    c = *s;
+    if ((c & 0xC0) == 0xC0)
+        return(2);
+    while (*s) {
+        if (s >= maxbuf)
+            return(-1);	/* name goes past the end of the buffer */
+        ND_TCHECK2(*s, 1);
+        s += (*s) + 1;
+        if (*s == '\0') break; // Add null termination check
+    }
+    return(PTR_DIFF(s, s0) + 1);
+
+trunc:
+    return(-1);	/* name goes past the end of the buffer */
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[36/52] the-tcpdump-group___tcpdump@7335163a6ef82d46ff18f3e6099a157747241629
+SHA: 7335163a6ef82d46ff18f3e6099a157747241629
+Perfect localisation:
+  category : single_line
+  line    8:     ND_PRINT((ndo, "seq 0x%03x, Flags [%s], length %u",
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 8: score=1.0000 |     ND_PRINT((ndo, "seq 0x%03x, Flags [%s], length %u",
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static void
+handle_mlppp(netdissect_options *ndo,
+             const u_char *p, int length)
+{
+    if (!ndo->ndo_eflag)
+        ND_PRINT((ndo, "MLPPP, "));
+
+    ND_PRINT((ndo, "seq 0x%03x, Flags [%s], length %u",
+        ...
+
+Extracted patch:
+static void
+handle_mlppp(netdissect_options *ndo,
+             const u_char *p, int length)
+{
+    if (!ndo->ndo_eflag)
+        ND_PRINT((ndo, "MLPPP, "));
+
+    ND_PRINT((ndo, "seq 0x%03x, Flags [%s], length %u",
+           (EXTRACT_16BITS(p))&0x0fff, /* only support 12-Bit sequence space for now */
+           bittok2str(ppp_ml_flag_values, "none", *p & 0xc0),
+           length));
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[37/52] the-tcpdump-group___tcpdump@7d3aba9f06899d0128ef46e8a2fa143c6fad8f62
+SHA: 7d3aba9f06899d0128ef46e8a2fa143c6fad8f62
+Perfect localisation:
+  category : single_line
+  line   56: 			ND_PRINT((ndo, "(ni: ho=0x%04x co=0x%04x)",
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 56: score=1.0000 | 			ND_PRINT((ndo, "(ni: ho=0x%04x co=0x%04x)",
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+mobility_opt_print(netdissect_options *ndo,
+                   const u_char *bp, const unsigned len)
+{
+	unsigned i, optlen;
+
+	for (i = 0; i < len; i += optlen) {
+		ND_TCHECK(bp[i]);
+		if (bp[i] == IP6MOPT_PAD1...
+
+Extracted patch:
+ND_PRINT((ndo, "(ni: ho=0x%04x co=0x%04x)", EXTRACT_16BITS(&bp[i+2]), EXTRACT_16BITS(&bp[i+4])));
+
+Compile : True
+Fixed   : False
+============================================================
+[38/52] the-tcpdump-group___tcpdump@8512734883227c11568bb35da1d48b9f8466f43f
+SHA: 8512734883227c11568bb35da1d48b9f8466f43f
+Perfect localisation:
+  category : single_hunk
+  line   62: 			ND_PRINT((ndo,"%04x:%04x ", panid, EXTRACT_LE_16BITS(p + 2)));
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 62: score=1.0000 | 			ND_PRINT((ndo,"%04x:%04x ", panid, EXTRACT_LE_16BITS(p + 2)));
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+u_int
+ieee802_15_4_if_print(netdissect_options *ndo,
+                      const struct pcap_pkthdr *h, const u_char *p)
+{
+	u_int caplen = h->caplen;
+	u_int hdrlen;
+	uint16_t fc;
+	uint8_t seq;
+	uint16_t panid = 0;
+
+	if (...
+
+Extracted patch:
+ND_PRINT((ndo,"%04x:%04x ", panid, EXTRACT_LE_16BITS(p + 2)));
+
+Compile : True
+Fixed   : False
+============================================================
+[39/52] the-tcpdump-group___tcpdump@88b2dac837e81cf56dce05e6e7b5989332c0092d
+SHA: 88b2dac837e81cf56dce05e6e7b5989332c0092d
+Perfect localisation:
+  category : single_line
+  line   17: 		ND_PRINT((ndo, "\n\tOptions [%s]",
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 17: score=1.0000 | 		ND_PRINT((ndo, "\n\tOptions [%s]",
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+ospf6_decode_v3(netdissect_options *ndo,
+                register const struct ospf6hdr *op,
+                register const u_char *dataend)
+{
+	register const rtrid_t *ap;
+	register const struct lsr6 *lsrp;
+	r...
+
+Extracted patch:
+case OSPF_TYPE_LS_REQ:
+	if (ndo->ndo_vflag > 1) {
+		lsrp = (const struct lsr6 *)((const uint8_t *)op + OSPF6HDR_LEN);
+		while ((const u_char *)lsrp < dataend && (const u_char *)lsrp + sizeof(*lsrp) <= dataend) { // checked
+			ND_TCHECK(*lsrp);
+			ND_PRINT((ndo, "
+	  Advertising Router %s",
+				    ipaddr_string(ndo, &lsrp->ls_router)));
+			ospf6_print_ls_type(ndo, EXTRACT_16BITS(&lsrp->ls_type),
+                                                    &lsrp->ls_stateid);
+			memcpy(&temp, lsrp, sizeof(*lsrp)); // copy the current structure
+			++lsrp;
+		}
+	}
+	break;
+
+case OSPF_TYPE_LS_UPDATE:
+	if (ndo->ndo_vflag > 1) {
+		register const struct lsu6 *lsup = (const struct lsu6 *)((const uint8_t *)op + OSPF6HDR_LEN);
+
+		ND_TCHECK(lsup->lsu_count);
+		i = EXTRACT_32BITS(&lsup->lsu_count);
+		lsap = lsup->lsu_lsa;
+		while ((const u_char *)lsap < dataend && i-- && (const u_char *)lsap + sizeof(*lsap) <= dataend) { // checked
+			if (ospf6_print_lsa(ndo, lsap, dataend))
+				goto trunc;
+			memcpy(&temp2, lsap, sizeof(*lsap)); // copy the current structure
+			lsap = (const struct lsa6 *)((const u_char *)lsap + EXTRACT_16BITS(&lsap->ls_hdr.ls_length));
+		}
+	}
+	break;
+
+case OSPF_TYPE_LS_ACK:
+	if (ndo->ndo_vflag > 1) {
+		lshp = (const struct lsa6_hdr *)((const uint8_t *)op + OSPF6HDR_LEN);
+		while ((const u_char *)lshp < dataend && (const u_char *)lshp + sizeof(*lshp) <= dataend) { // checked
+			if (ospf6_print_lshdr(ndo, lshp++, dataend))
+				goto trunc;
+		}
+	}
+	break;
+
+Compile : True
+Fixed   : False
+============================================================
+[40/52] the-tcpdump-group___tcpdump@8934a7d6307267d301182f19ed162563717e29e3
+SHA: 8934a7d6307267d301182f19ed162563717e29e3
+Perfect localisation:
+  category : single_line
+  line   57: 		if (*p != IAC)
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 57: score=1.0000 | 		if (*p != IAC)
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+telnet_parse(netdissect_options *ndo, const u_char *sp, u_int length, int print)
+{
+	int i, x;
+	u_int c;
+	const u_char *osp, *p;
+#define FETCH(c, sp, length) \
+	do { \
+		if (length < 1) \
+			goto pktend; \
+		ND...
+
+Extracted patch:
+if (*p != IAC)
+
+Compile : True
+Fixed   : False
+============================================================
+[41/52] the-tcpdump-group___tcpdump@979dcefd7b259e9e233f77fe1c5312793bfd948f
+SHA: 979dcefd7b259e9e233f77fe1c5312793bfd948f
+Perfect localisation:
+  category : single_hunk
+  line   28:         if (!ND_TTEST2(*tptr, 1)) /* fetch status & prefix_len byte */
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 28: score=1.0000 |         if (!ND_TTEST2(*tptr, 1)) /* fetch status & prefix_len byte */
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+isis_print_extd_ip_reach(netdissect_options *ndo,
+                         const uint8_t *tptr, const char *ident, uint16_t afi)
+{
+    char ident_buffer[20];
+    uint8_t prefix[sizeof(struct in6_addr)]; /* sha...
+
+Extracted patch:
+if (!ND_TTEST2(*tptr, 1)) /* fetch status & prefix_len byte */
+
+Compile : True
+Fixed   : True
+============================================================
+[42/52] the-tcpdump-group___tcpdump@a77ff09c46560bc895dea11dc9fe643486b056ac
+SHA: a77ff09c46560bc895dea11dc9fe643486b056ac
+Perfect localisation:
+  category : single_hunk
+  line   51:         if (tlen < oid_len) {
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 51: score=1.0000 |         if (tlen < oid_len) {
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+lldp_mgmt_addr_tlv_print(netdissect_options *ndo,
+                         const u_char *pptr, u_int len)
+{
+    uint8_t mgmt_addr_len, intf_num_subtype, oid_len;
+    const u_char *tptr;
+    u_int tlen;
+    cha...
+
+Extracted patch:
+if (tlen < oid_len) {
+
+Compile : True
+Fixed   : True
+============================================================
+[43/52] the-tcpdump-group___tcpdump@a7e5f58f402e6919ec444a57946bade7dfd6b184
+SHA: a7e5f58f402e6919ec444a57946bade7dfd6b184
+Perfect localisation:
+  category : single_hunk
+  line   81: 			ND_PRINT((ndo,"%04x:%s ", panid, le64addr_string(ndo, p + 2)));
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 81: score=1.0000 | 			ND_PRINT((ndo,"%04x:%s ", panid, le64addr_string(ndo, p + 2)));
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+u_int
+ieee802_15_4_if_print(netdissect_options *ndo,
+                      const struct pcap_pkthdr *h, const u_char *p)
+{
+	u_int caplen = h->caplen;
+	u_int hdrlen;
+	uint16_t fc;
+	uint8_t seq;
+	uint16_t panid = 0;
+
+	if (...
+
+Extracted patch:
+ND_PRINT((ndo, "%04x:%s ", panid, le64addr_string(ndo, p + 4)));
+
+Compile : True
+Fixed   : True
+============================================================
+[44/52] the-tcpdump-group___tcpdump@aa0858100096a3490edf93034a80e66a4d61aad5
+SHA: aa0858100096a3490edf93034a80e66a4d61aad5
+Perfect localisation:
+  category : single_line
+  line   57: 			temp = EXTRACT_32BITS(bp);
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 57: score=1.0000 | 			temp = EXTRACT_32BITS(bp);
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static void
+ubik_print(netdissect_options *ndo,
+           register const u_char *bp)
+{
+	int ubik_op;
+	int32_t temp;
+
+	/*
+	 * Print out the afs call we're invoking.  The table used here was
+	 * gleaned from ubik/ubik_int...
+
+Extracted patch:
+// corrected hunk
+			if (bp) {
+				temp = EXTRACT_32BITS(bp);
+			} else {
+				ND_PRINT((ndo, " [|ubik] unknown location"));
+				return;
+			}
+
+Compile : True
+Fixed   : False
+============================================================
+[45/52] the-tcpdump-group___tcpdump@b8e559afaeb8fe0604a1f8e3ad4dc1445de07a00
+SHA: b8e559afaeb8fe0604a1f8e3ad4dc1445de07a00
+Perfect localisation:
+  category : single_line
+  line   40: 			ND_PRINT((ndo, "(refresh: %u)",
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 40: score=1.0000 | 			ND_PRINT((ndo, "(refresh: %u)",
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+mobility_opt_print(netdissect_options *ndo,
+                   const u_char *bp, const unsigned len)
+{
+	unsigned i, optlen;
+
+	for (i = 0; i < len; i += optlen) {
+		ND_TCHECK(bp[i]);
+		if (bp[i] == IP6MOPT_PAD1...
+
+Extracted patch:
+case IP6MOPT_REFRESH:
+			if (len - i < IP6MOPT_REFRESH_MINLEN) {
+				ND_PRINT((ndo, "(refresh: trunc)"));
+				goto trunc;
+			}
+			/* units of 4 secs */
+			unsigned refresh_val = EXTRACT_16BITS(&bp[i+2]) << 2;
+			if (refresh_val > UINT_MAX/4) { // check for buffer overflow
+				return 1; // return error
+			}
+			ND_PRINT((ndo, "(refresh: %u)", refresh_val));
+			break;
+
+Compile : True
+Fixed   : False
+============================================================
+[46/52] the-tcpdump-group___tcpdump@ca336198e8bebccc18502de27672fdbd6eb34856
+SHA: ca336198e8bebccc18502de27672fdbd6eb34856
+Perfect localisation:
+  category : multi_hunk
+  line   17: 	hdrlen = EXTRACT_LE_32BITS(&hdr->pkt_len);
+  line   50: 			hdrlen += printer(ndo, h, p);
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 17: score=1.0000 | 	hdrlen = EXTRACT_LE_32BITS(&hdr->pkt_len);
+- line 50: score=1.0000 | 			hdrlen += printer(ndo, h, p);
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+u_int
+pktap_if_print(netdissect_options *ndo,
+               const struct pcap_pkthdr *h, const u_char *p)
+{
+	uint32_t dlt, hdrlen, rectype;
+	u_int caplen = h->caplen;
+	u_int length = h->len;
+	if_printer printer;
+	const ...
+
+Extracted patch:
+hdrlen += printer(ndo, h, p) ? 0 : (pnt = extract_le_32bits(&hdr->pkt_len));
+
+Compile : True
+Fixed   : False
+============================================================
+[47/52] the-tcpdump-group___tcpdump@e6511cc1a950fe1566b2236329d6b4bd0826cc7a
+SHA: e6511cc1a950fe1566b2236329d6b4bd0826cc7a
+Perfect localisation:
+  category : single_line
+  line   52:         ND_PRINT((ndo, "\n\t    MTU size %u", EXTRACT_16BITS(tptr + 4)));
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 52: score=1.0000 |         ND_PRINT((ndo, "\n\t    MTU size %u", EXTRACT_16BITS(tptr + 4)));
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+lldp_private_8023_print(netdissect_options *ndo,
+                        const u_char *tptr, u_int tlv_len)
+{
+    int subtype, hexdump = FALSE;
+
+    if (tlv_len < 4) {
+        return hexdump;
+    }
+    subtype...
+
+Extracted patch:
+ND_PRINT((ndo, "\n\t    MTU size %u", EXTRACT_16BITS(tptr + 4)));
+
+Compile : True
+Fixed   : False
+============================================================
+[48/52] the-tcpdump-group___tcpdump@f76e7feb41a4327d2b0978449bbdafe98d4a3771
+SHA: f76e7feb41a4327d2b0978449bbdafe98d4a3771
+Perfect localisation:
+  category : multi_hunk
+  line    6: 
+  line   11: 
+  line   15: 
+  line   24: 
+  line   29: 
+  line   31: 
+  line   35: 
+  line   39: 
+  line   43: 
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 6: score=1.0000 | 
+- line 11: score=1.0000 | 
+- line 15: score=1.0000 | 
+- line 24: score=1.0000 | 
+- line 29: score=1.0000 | 
+- line 31: score=1.0000 | 
+- line 35: score=1.0000 | 
+- line 39: score=1.0000 | 
+- line 43: score=1.0000 | 
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+void
+isakmp_rfc3948_print(netdissect_options *ndo,
+		     const u_char *bp, u_int length,
+		     const u_char *bp2)
+{
+
+	if(length == 1 && bp[0]==0xff) {
+		ND_PRINT((ndo, "isakmp-nat-keep-alive"));
+		return;
+	}
+
+	if(lengt...
+
+Extracted patch:
+if ((bp[0] == 0) && (bp[1] == 0) && (bp[2] == 0) && (bp[3] == 0)) {
+
+Compile : True
+Fixed   : False
+============================================================
+[49/52] uriparser___uriparser@864f5d4c127def386dd5cc926ad96934b297f04e
+SHA: 864f5d4c127def386dd5cc926ad96934b297f04e
+Perfect localisation:
+  category : single_line
+  line   43: 				firstItem = URI_FALSE;
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 43: score=1.0000 | 				firstItem = URI_FALSE;
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+int URI_FUNC(ComposeQueryEngine)(URI_CHAR * dest,
+		const URI_TYPE(QueryList) * queryList,
+		int maxChars, int * charsWritten, int * charsRequired,
+		UriBool spaceToPlus, UriBool normalizeBreaks) {
+	UriBool firstItem = U...
+
+Extracted patch:
+// Corrected vulnerable hunk:
+firstItem = URI_FALSE;
+
+Compile : True
+Fixed   : False
+============================================================
+[50/52] wez___atomicparsley@d72ccf06c98259d7261e0f3ac4fd8717778782c1
+SHA: d72ccf06c98259d7261e0f3ac4fd8717778782c1
+Perfect localisation:
+  category : single_hunk
+  line    2:   char uint32_buffer[5];
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 2: score=1.0000 |   char uint32_buffer[5];
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+void APar_ExtractDetails(FILE *isofile, uint8_t optional_output) {
+  char uint32_buffer[5];
+  Trackage track = {0};
+
+  AtomicInfo *mvhdAtom = APar_FindAtom("moov.mvhd", false, VERSIONED_ATOM, 0);
+  if (mvhdAtom != NULL) ...
+
+Extracted patch:
+void APar_ExtractDetails(FILE *isofile, uint8_t optional_output) {
+  // Corrected buffer size
+  char uint32_buffer[64];
+
+  Trackage track = {0};
+
+  AtomicInfo *mvhdAtom = APar_FindAtom("moov.mvhd", false, VERSIONED_ATOM, 0);
+  if (mvhdAtom != NULL) {
+    APar_ExtractMovieDetails(uint32_buffer, isofile, mvhdAtom);
+    // ...
+
+Compile : True
+Fixed   : False
+============================================================
+[51/52] znc___znc@2390ad111bde16a78c98ac44572090b33c3bd2d8
+SHA: 2390ad111bde16a78c98ac44572090b33c3bd2d8
+Perfect localisation:
+  category : single_hunk
+  line    5:             (pClient != this && (m_pNetwork->IsChan(Message.GetParam(0)) ||
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 5: score=1.0000 |             (pClient != this && (m_pNetwork->IsChan(Message.GetParam(0)) ||
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+void CClient::EchoMessage(const CMessage& Message) {
+    CMessage EchoedMessage = Message;
+    for (CClient* pClient : GetClients()) {
+        if (pClient->HasEchoMessage() ||
+            (pClient != this && (m_pNetwork-...
+
+Extracted patch:
+(pClient != this && (m_pNetwork->IsChan(Message.GetParam(0)) ||
+
+Compile : True
+Fixed   : True
+============================================================
+[52/52] znc___znc@d229761821da38d984a9e4098ad96842490dc001
+SHA: d229761821da38d984a9e4098ad96842490dc001
+Perfect localisation:
+  category : single_line
+  line   15:             if (sTarget.Equals("status")) {
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+
+Fault localisation: Localisation signals:
+- threshold: 1.00
+- Ground truth localisation — exact vulnerable lines (oracle).
+- Lines at or above threshold:
+- line 15: score=1.0000 |             if (sTarget.Equals("status")) {
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+bool CClient::OnTextMessage(CTextMessage& Message) {
+    CString sTargets = Message.GetTarget();
+
+    VCString vTargets;
+    sTargets.Split(",", vTargets, false);
+
+    for (CString& sTarget : vTargets) {
+        Message....
+
+Extracted patch:
+// ...
+
+if (sTarget.Equals("status")) {
+    CString sMsg = Message.GetText();
+    UserCommand(sMsg);
+} else {
+    CALLMOD(sTarget, this, m_pUser, m_pNetwork,
+            OnModCommand(Message.GetText()));
+}
+
+// ...
+
+Compile : True
+Fixed   : False
+============================================================
+OVERALL RESULTS
+============================================================
+Total cases   : 52
+Compile Rate  :  52 / 52  (100.0%)
+Pass@5         :   9 / 52  (17.3%)

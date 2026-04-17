@@ -20,8 +20,13 @@ PIPELINE="$SCRIPT_DIR/abalation_pipeline.py"
 OLLAMA_HOST="${OLLAMA_HOST:-http://100.97.159.90:11434}"
 JIN_HOST="${JIN_HOST:-http://100.78.242.59:8000}"
 CANDIDATES="${CANDIDATES:-1}"
-TEMPERATURE="${TEMPERATURE:-0.01}"
+# Default temperature: greedy for pass@1, diverse for pass@k
+if [ -z "${TEMPERATURE:-}" ]; then
+    TEMPERATURE=$( [ "$CANDIDATES" -eq 1 ] && echo "0.01" || echo "0.8" )
+fi
 SEED="${SEED:-42}"
+# Single timestamp for the whole bash run so all augment files share a folder
+RUN_DIR="${SCRIPT_DIR}/experiments/$(date '+%Y-%m-%d_%H-%M-%S')"
 
 AUGMENTS=(
     "vanilla"
@@ -48,7 +53,8 @@ run_model() {
             --temperature  "$TEMPERATURE" \
             --seed         "$SEED" \
             --ollama-host  "$OLLAMA_HOST" \
-            --jin-host     "$JIN_HOST"
+            --jin-host     "$JIN_HOST" \
+            --run-dir      "$RUN_DIR"
     done
 }
 
@@ -77,9 +83,9 @@ case "${1:-}" in
         echo ""
         echo "Optional env overrides:"
         echo "  OLLAMA_HOST=http://host:port  (default: http://100.97.159.90:11434)"
-        echo "  JIN_HOST=http://host:port     (default: http://100.78.242.59:8000)"
+        echo "  JIN_HOST=http://host:port     (default: http://100.78.242.59:8001)"
         echo "  CANDIDATES=5                  (default: 1, use 5 for Pass@5)"
-        echo "  TEMPERATURE=0.01              (default: 0.01)"
+        echo "  TEMPERATURE=0.8               (default: 0.01 for pass@1, 0.8 for pass@k)"
         echo "  SEED=42                       (default: 42)"
         exit 1
         ;;

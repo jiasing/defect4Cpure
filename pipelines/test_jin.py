@@ -10,7 +10,7 @@ import requests
 from pathlib import Path
 
 DEFECTS4C_BASE_URL = "http://127.0.0.1:11111"
-JIN_HOST           = "http://100.78.242.59:8000"
+JIN_HOST           = "http://100.78.242.59:8001"
 
 CVE_DATA_DIR   = Path("../defectsc_tpl/data/buggy_errmsg_cve")
 CVE_DATA_FILES = [

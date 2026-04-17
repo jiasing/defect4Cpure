@@ -1,0 +1,4339 @@
+ABLATION PIPELINE RUN
+============================================================
+Timestamp       : 2026-04-16 09:37:31
+Model           : llama3:8b
+Ablation        : LocRtrv
+JIN augmentation: localisation, retrieval
+Candidates (k)  : 1
+Temperature     : 0.01
+Seed            : 42
+Ollama host     : http://100.97.159.90:11434
+JIN host        : http://100.78.242.59:8000
+Base system prompt: You are a C/CPP code program repair expert
+Total CVE cases : 52
+============================================================
+============================================================
+[1/52] ClusterLabs___libqb@1bbaa929b77113532785c408dd1b41cd0521ffc8
+SHA: 1bbaa929b77113532785c408dd1b41cd0521ffc8
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 60: score=0.9621 | 	msg_len = qb_vsnprintf_serialize(chunk, max_size, cs->format, ap);
+- line 61: score=0.9993 | 	if (msg_len >= max_size) {
+- line 70: score=0.2265 | 	actual_size += msg_len;
+- line 74: score=0.4269 | 	memcpy(msg_len_pt, &msg_len, sizeof(uint32_t));
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: ClusterLabs/libqb lib/log_blackbox.c::_blackbox_vlogger (distance=0.0000)
+  vulnerable_before:
+static void
+_blackbox_vlogger(int32_t target,
+		  struct qb_log_callsite *cs, struct timespec *timestamp, va_list ap)
+{
+	size_t max_size;
+	siz...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 60: score=0.9621 | 	msg_len = qb_vsnprintf_serialize(chunk, max_size, cs->format, ap);
+- line 61: score=0.9993 | 	if (msg_len >= max_size) {
+- line 70: score=0.2265 | 	actual_size += msg_len;
+- line 74: score=0.4269 | 	memcpy(msg_len_pt, &msg_len, sizeof(uint32_t));
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static void
+_blackbox_vlogger(int32_t target,
+		  struct qb_log_callsite *cs, struct timespec *timestamp, va_list ap)
+{
+	size_t max_size;
+	size_t actual_size;
+	uint32_t fn_size;
+	char *chunk;
+	char *msg_len_pt;
+	uint32_t...
+
+Extracted patch:
+msg_len = qb_vsnprintf_serialize(chunk, t->max_line_length, cs->format, ap);
+if (msg_len >= t->max_line_length) {
+    chunk = msg_len_pt + sizeof(uint32_t); /* Reset */
+
+    /* Leave this at QB_LOG_MAX_LEN so as not to overflow the blackbox */
+    msg_len = qb_vsnprintf_serialize(chunk, QB_LOG_MAX_LEN,
+        "Log message too long to be stored in the blackbox.  "\
+        "Maximum is QB_LOG_MAX_LEN" , ap);
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[2/52] DaveGamble___cJSON@be749d7efa7c9021da746e685bd6dec79f9dd99b
+SHA: be749d7efa7c9021da746e685bd6dec79f9dd99b
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 13: score=0.9935 |         while ((current_element != NULL) && (strcmp(name, current_element->string) != 0))
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: DaveGamble/cJSON cJSON.c::get_object_item (distance=0.0000)
+  vulnerable_before:
+static cJSON *get_object_item(const cJSON * const object, const char * const name, const cJSON_bool case_sensitive)
+{
+    cJSON *current_element = NULL;
+
+  ...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 13: score=0.9935 |         while ((current_element != NULL) && (strcmp(name, current_element->string) != 0))
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static cJSON *get_object_item(const cJSON * const object, const char * const name, const cJSON_bool case_sensitive)
+{
+    cJSON *current_element = NULL;
+
+    if ((object == NULL) || (name == NULL))
+    {
+        return N...
+
+Extracted patch:
+static cJSON *get_object_item(const cJSON * const object, const char * const name, const cJSON_bool case_sensitive)
+{
+    cJSON *current_element = NULL;
+
+    if ((object == NULL) || (name == NULL))
+    {
+        return NULL;
+    }
+
+    current_element = object->child;
+    if (case_sensitive)
+    {
+        while ((current_element != NULL) && (current_element->string != NULL) && (strcmp(name, current_element->string) != 0))
+        {
+            current_element = current_element->next;
+        }
+    }
+    else
+    {
+        while ((current_element != NULL) && (case_insensitive_strcmp((const unsigned char*)name, (const unsigned char*)(current_element->string)) != 0))
+        {
+            current_element = current_element->next;
+        }
+    }
+
+    if ((current_element == NULL) || (current_element->string == NULL)) {
+        return NULL;
+    }
+
+    return current_element;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[3/52] OpenIDC___cjose@7325e9a5e71e2fc0e350487ecac7d84acdf0ed5e
+SHA: 7325e9a5e71e2fc0e350487ecac7d84acdf0ed5e
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 21: score=0.0233 |     if (strcmp(enc, CJOSE_HDR_ENC_A256GCM) == 0)
+- line 19: score=0.0090 |     if (strcmp(enc, CJOSE_HDR_ENC_A192GCM) == 0)
+- line 24: score=0.0068 |     if (NULL == cipher)
+- line 17: score=0.0061 |     if (strcmp(enc, CJOSE_HDR_ENC_A128GCM) == 0)
+- line 23: score=0.0016 | 
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: OpenIDC/cjose src/jwe.c::_cjose_jwe_decrypt_dat_aes_gcm (distance=0.0000)
+  vulnerable_before:
+static bool _cjose_jwe_decrypt_dat_aes_gcm(cjose_jwe_t *jwe, cjose_err *err)
+{
+    EVP_CIPHER_CTX *ctx = NULL;
+
+    // make sure we have an en...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 21: score=0.0233 |     if (strcmp(enc, CJOSE_HDR_ENC_A256GCM) == 0)
+- line 19: score=0.0090 |     if (strcmp(enc, CJOSE_HDR_ENC_A192GCM) == 0)
+- line 24: score=0.0068 |     if (NULL == cipher)
+- line 17: score=0.0061 |     if (strcmp(enc, CJOSE_HDR_ENC_A128GCM) == 0)
+- line 23: score=0.0016 | 
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static bool _cjose_jwe_decrypt_dat_aes_gcm(cjose_jwe_t *jwe, cjose_err *err)
+{
+    EVP_CIPHER_CTX *ctx = NULL;
+
+    // make sure we have an enc header
+    json_t *enc_obj = json_object_get(jwe->hdr, CJOSE_HDR_ENC);
+    i...
+
+Extracted patch:
+// set the expected GCM-mode authentication tag
+if (jwe->enc_auth_tag.raw_len != 16) {
+    CJOSE_ERROR(err, CJOSE_ERR_CRYPTO);
+    goto _cjose_jwe_decrypt_dat_aes_gcm_fail;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[4/52] VirusTotal___yara@4a342f01e5439b9bb901aff1c6c23c536baeeb3f
+SHA: 4a342f01e5439b9bb901aff1c6c23c536baeeb3f
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 18: score=0.9998 |     count = yr_max(64, (index + 1) * 2);
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: VirusTotal/yara libyara/object.c::yr_object_array_set_item (distance=0.0000)
+  vulnerable_before:
+int yr_object_array_set_item(
+    YR_OBJECT* object,
+    YR_OBJECT* item,
+    int index)
+{
+  YR_OBJECT_ARRAY* array;
+
+  int i;
+  int count;...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 18: score=0.9998 |     count = yr_max(64, (index + 1) * 2);
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+int yr_object_array_set_item(
+    YR_OBJECT* object,
+    YR_OBJECT* item,
+    int index)
+{
+  YR_OBJECT_ARRAY* array;
+
+  int i;
+  int count;
+
+  assert(index >= 0);
+  assert(object->type == OBJECT_TYPE_ARRAY);
+
+  array = o...
+
+Extracted patch:
+int yr_object_array_set_item(
+    YR_OBJECT* object,
+    YR_OBJECT* item,
+    int index)
+{
+  YR_OBJECT_ARRAY* array;
+
+  int i;
+  int count;
+
+  assert(index >= 0);
+  assert(object->type == OBJECT_TYPE_ARRAY);
+
+  array = object_as_array(object);
+
+  if (array->items == NULL)
+  {
+    count = 64;
+
+    while (count <= index)
+      count *= 2;
+
+    array->items = (YR_ARRAY_ITEMS*) yr_malloc(
+        sizeof(YR_ARRAY_ITEMS) + count * sizeof(YR_OBJECT*));
+
+    if (array->items == NULL)
+      return ERROR_INSUFFICIENT_MEMORY;
+
+    memset(array->items->objects, 0, count * sizeof(YR_OBJECT*));
+
+    array->items->count = count;
+  }
+  else if (index >= array->items->count)
+  {
+    count = array->items->count * 2;
+
+    while (count <= index)
+      count *= 2;
+
+    array->items = (YR_ARRAY_ITEMS*) yr_realloc(
+        array->items,
+        sizeof(YR_ARRAY_ITEMS) + count * sizeof(YR_OBJECT*));
+
+    if (array->items == NULL)
+      return ERROR_INSUFFICIENT_MEMORY;
+
+    for (i = array->items->count; i < count; i++)
+      array->items->objects[i] = NULL;
+
+    array->items->count = count;
+  }
+
+  item->parent = object;
+  array->items->objects[index] = item;
+
+  return ERROR_SUCCESS;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[5/52] Yeraze___ytnef@3cb0f914d6427073f262e1b2b5fd973e3043cdf7
+SHA: 3cb0f914d6427073f262e1b2b5fd973e3043cdf7
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 18: score=0.5179 |       return YTNEF_CANNOT_INIT_DATA;
+- line 29: score=0.2554 |     return YTNEF_ERROR_READING_DATA;
+- line 48: score=0.4039 |     return YTNEF_NO_KEY;
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: Yeraze/ytnef lib/ytnef.c::TNEFParse (distance=0.0000)
+  vulnerable_before:
+int TNEFParse(TNEFStruct *TNEF) {
+  WORD key;
+  DWORD type;
+  DWORD size;
+  DWORD signature;
+  BYTE *data;
+  WORD checksum, header_checksum;
+  int i;
+
+  if (TNEF-...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 18: score=0.5179 |       return YTNEF_CANNOT_INIT_DATA;
+- line 29: score=0.2554 |     return YTNEF_ERROR_READING_DATA;
+- line 48: score=0.4039 |     return YTNEF_NO_KEY;
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+int TNEFParse(TNEFStruct *TNEF) {
+  WORD key;
+  DWORD type;
+  DWORD size;
+  DWORD signature;
+  BYTE *data;
+  WORD checksum, header_checksum;
+  int i;
+
+  if (TNEF->IO.ReadProc == NULL) {
+    printf("ERROR: Setup incorrect...
+
+Extracted patch:
+int TNEFParse(TNEFStruct *TNEF) {
+  WORD key;
+  DWORD type;
+  DWORD size;
+  DWORD signature;
+  BYTE *data;
+  WORD checksum, header_checksum;
+  int i;
+
+  if (TNEF->IO.ReadProc == NULL) {
+    printf("ERROR: Setup incorrectly: No ReadProc\n");
+    return YTNEF_INCORRECT_SETUP;
+  }
+
+  if (TNEF->IO.InitProc != NULL) {
+    DEBUG(TNEF->Debug, 2, "About to initialize");
+    if (TNEF->IO.InitProc(&TNEF->IO) != 0) {
+      return YTNEF_CANNOT_INIT_DATA;
+    }
+    DEBUG(TNEF->Debug, 2, "Initialization finished");
+  }
+
+  DEBUG(TNEF->Debug, 2, "Reading Signature");
+  if (TNEF->IO.ReadProc(&TNEF->IO, sizeof(DWORD), 1, &signature) < 1) {
+    printf("ERROR: Error reading signature\n");
+    if (TNEF->IO.CloseProc != NULL) {
+      TNEF->IO.CloseProc(&TNEF->IO);
+    }
+    return YTNEF_ERROR_READING_DATA;
+  }
+
+  DEBUG(TNEF->Debug, 2, "Checking Signature");
+  if (TNEFCheckForSignature(signature) < 0) {
+    printf("ERROR: Signature does not match. Not TNEF.\n");
+    if (TNEF->IO.CloseProc != NULL) {
+      TNEF->IO.CloseProc(&TNEF->IO);
+    }
+    return YTNEF_NOT_TNEF_STREAM;
+  }
+
+  DEBUG(TNEF->Debug, 2, "Reading Key.");
+
+  if (TNEFGetKey(TNEF, &key) < 0) {
+    printf("ERROR: Unable to retrieve key.\n");
+    if (TNEF->IO.CloseProc != NULL) {
+      TNEF->IO.CloseProc(&TNEF->IO);
+    }
+    return YTNEF_NO_KEY;
+  }
+
+  DEBUG(TNEF->Debug, 2, "Starting Full Processing.");
+
+  while (TNEFGetHeader(TNEF, &type, &size) == 0) {
+    DEBUG2(TNEF->Debug, 2, "Header says type=0x%X, size=%u", type, size);
+    DEBUG2(TNEF->Debug, 2, "Header says type=%u, size=%u", type, size);
+    if(size == 0) {
+      printf("ERROR: Field with size of 0\n");
+      return YTNEF_ERROR_READING_DATA;
+    }
+    data = calloc(size, sizeof(BYTE));
+    ALLOCCHECK(data);
+    if (TNEFRawRead(TNEF, data, size, &header_checksum) < 0) {
+      printf("ERROR: Unable to read data.\n");
+      if (TNEF->IO.CloseProc != NULL) {
+        TNEF->IO.CloseProc(&TNEF->IO);
+      }
+      free(data);
+      return YTNEF_ERROR_READING_DATA;
+    }
+    if (TNEFRawRead(TNEF, (BYTE *)&checksum, 2, NULL) < 0) {
+      printf("ERROR: Unable to read checksum.\n");
+      if (TNEF->IO.CloseProc != NULL) {
+        TNEF->IO.CloseProc(&TNEF->IO);
+      }
+      free(data);
+      return YTNEF_ERROR_READING_DATA;
+    }
+    checksum = SwapWord((BYTE *)&checksum, sizeof(WORD));
+    if (checksum != header_checksum) {
+      printf("ERROR: Checksum mismatch. Data corruption?:\n");
+      if (TNEF->IO.CloseProc != NULL) {
+        TNEF->IO.CloseProc(&TNEF->IO);
+      }
+      free(data);
+      return YTNEF_BAD_CHECKSUM;
+    }
+    for (i = 0; i < (sizeof(TNEFList) / sizeof(TNEFHandler)); i++) {
+      if (TNEFList[i].id == type) {
+        if (TNEFList[i].handler != NULL) {
+          if (TNEFList[i].handler(TNEF, i, (char*)data, size) < 0) {
+            free(data);
+            if (TNEF->IO.CloseProc != NULL) {
+              TNEF->IO.CloseProc(&TNEF->IO);
+            }
+            return YTNEF_ERROR_IN_HANDLER;
+          } else {
+            //  Found our handler and processed it.  now time to get out
+            break;
+          }
+        } else {
+          DEBUG2(TNEF->Debug, 1, "No handler for %s: %u bytes",
+                 TNEFList[i].name, size);
+        }
+      }
+    }
+
+    free(data);
+  }
+
+  if (TNEF->IO.CloseProc != NULL) {
+    TNEF->IO.CloseProc(&TNEF->IO);
+  }
+  return 0;
+
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[6/52] curl___curl@1890d59905414ab84a35892b2e45833654aa5c13
+SHA: 1890d59905414ab84a35892b2e45833654aa5c13
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 10: score=0.9980 |     if('%' == *ptr) {
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: curl src/tool_writeout.c::ourWriteOut (distance=0.0000)
+  vulnerable_before:
+void ourWriteOut(CURL *curl, struct OutStruct *outs, const char *writeinfo)
+{
+  FILE *stream = stdout;
+  const char *ptr = writeinfo;
+  char *stringp = NULL;
+  ...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 10: score=0.9980 |     if('%' == *ptr) {
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+void ourWriteOut(CURL *curl, struct OutStruct *outs, const char *writeinfo)
+{
+  FILE *stream = stdout;
+  const char *ptr = writeinfo;
+  char *stringp = NULL;
+  long longinfo;
+  double doubleinfo;
+
+  while(ptr && *ptr) {
+...
+
+Extracted patch:
+void ourWriteOut(CURL *curl, struct OutStruct *outs, const char *writeinfo)
+{
+  FILE *stream = stdout;
+  const char *ptr = writeinfo;
+  char *stringp = NULL;
+  long longinfo;
+  double doubleinfo;
+
+  while(ptr && *ptr) {
+    if('%' == *ptr && ptr[1]) {
+      if('%' == ptr[1]) {
+        /* an escaped %-letter */
+        fputc('%', stream);
+        ptr += 2;
+      }
+      else {
+        /* this is meant as a variable to output */
+        char *end;
+        char keepit;
+        int i;
+        if('{' == ptr[1]) {
+          bool match = FALSE;
+          end = strchr(ptr, '}');
+          ptr += 2; /* pass the % and the { */
+          if(!end) {
+            fputs("%{", stream);
+            continue;
+          }
+          keepit = *end;
+          *end = 0; /* zero terminate */
+          for(i = 0; replacements[i].name; i++) {
+            if(curl_strequal(ptr, replacements[i].name)) {
+              match = TRUE;
+              switch(replacements[i].id) {
+              case VAR_EFFECTIVE_URL:
+                if((CURLE_OK ==
+                    curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &stringp))
+                   && stringp)
+                  fputs(stringp, stream);
+                break;
+              case VAR_HTTP_CODE:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &longinfo))
+                  fprintf(stream, "%03ld", longinfo);
+                break;
+              case VAR_HTTP_CODE_PROXY:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_HTTP_CONNECTCODE,
+                                     &longinfo))
+                  fprintf(stream, "%03ld", longinfo);
+                break;
+              case VAR_HEADER_SIZE:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_HEADER_SIZE, &longinfo))
+                  fprintf(stream, "%ld", longinfo);
+                break;
+              case VAR_REQUEST_SIZE:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_REQUEST_SIZE, &longinfo))
+                  fprintf(stream, "%ld", longinfo);
+                break;
+              case VAR_NUM_CONNECTS:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_NUM_CONNECTS, &longinfo))
+                  fprintf(stream, "%ld", longinfo);
+                break;
+              case VAR_REDIRECT_COUNT:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_REDIRECT_COUNT, &longinfo))
+                  fprintf(stream, "%ld", longinfo);
+                break;
+              case VAR_REDIRECT_TIME:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_REDIRECT_TIME,
+                                     &doubleinfo))
+                  fprintf(stream, "%.6f", doubleinfo);
+                break;
+              case VAR_TOTAL_TIME:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_TOTAL_TIME, &doubleinfo))
+                  fprintf(stream, "%.6f", doubleinfo);
+                break;
+              case VAR_NAMELOOKUP_TIME:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_NAMELOOKUP_TIME,
+                                     &doubleinfo))
+                  fprintf(stream, "%.6f", doubleinfo);
+                break;
+              case VAR_CONNECT_TIME:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_CONNECT_TIME, &doubleinfo))
+                  fprintf(stream, "%.6f", doubleinfo);
+                break;
+              case VAR_APPCONNECT_TIME:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_APPCONNECT_TIME,
+                                     &doubleinfo))
+                  fprintf(stream, "%.6f", doubleinfo);
+                break;
+              case VAR_PRETRANSFER_TIME:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_PRETRANSFER_TIME,
+                                     &doubleinfo))
+                  fprintf(stream, "%.6f", doubleinfo);
+                break;
+              case VAR_STARTTRANSFER_TIME:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_STARTTRANSFER_TIME,
+                                     &doubleinfo))
+                  fprintf(stream, "%.6f", doubleinfo);
+                break;
+              case VAR_SIZE_UPLOAD:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_SIZE_UPLOAD, &doubleinfo))
+                  fprintf(stream, "%.0f", doubleinfo);
+                break;
+              case VAR_SIZE_DOWNLOAD:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_SIZE_DOWNLOAD,
+                                     &doubleinfo))
+                  fprintf(stream, "%.0f", doubleinfo);
+                break;
+              case VAR_SPEED_DOWNLOAD:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_SPEED_DOWNLOAD,
+                                     &doubleinfo))
+                  fprintf(stream, "%.3f", doubleinfo);
+                break;
+              case VAR_SPEED_UPLOAD:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_SPEED_UPLOAD, &doubleinfo))
+                  fprintf(stream, "%.3f", doubleinfo);
+                break;
+              case VAR_CONTENT_TYPE:
+                if((CURLE_OK ==
+                    curl_easy_getinfo(curl, CURLINFO_CONTENT_TYPE, &stringp))
+                   && stringp)
+                  fputs(stringp, stream);
+                break;
+              case VAR_FTP_ENTRY_PATH:
+                if((CURLE_OK ==
+                    curl_easy_getinfo(curl, CURLINFO_FTP_ENTRY_PATH, &stringp))
+                   && stringp)
+                  fputs(stringp, stream);
+                break;
+              case VAR_REDIRECT_URL:
+                if((CURLE_OK ==
+                    curl_easy_getinfo(curl, CURLINFO_REDIRECT_URL, &stringp))
+                   && stringp)
+                  fputs(stringp, stream);
+                break;
+              case VAR_SSL_VERIFY_RESULT:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_SSL_VERIFYRESULT,
+                                     &longinfo))
+                  fprintf(stream, "%ld", longinfo);
+                break;
+              case VAR_PROXY_SSL_VERIFY_RESULT:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_PROXY_SSL_VERIFYRESULT,
+                                     &longinfo))
+                  fprintf(stream, "%ld", longinfo);
+                break;
+              case VAR_EFFECTIVE_FILENAME:
+                if(outs->filename)
+                  fprintf(stream, "%s", outs->filename);
+                break;
+              case VAR_PRIMARY_IP:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_PRIMARY_IP,
+                                     &stringp))
+                  fprintf(stream, "%s", stringp);
+                break;
+              case VAR_PRIMARY_PORT:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_PRIMARY_PORT,
+                                     &longinfo))
+                  fprintf(stream, "%ld", longinfo);
+                break;
+              case VAR_LOCAL_IP:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_LOCAL_IP,
+                                     &stringp))
+                  fprintf(stream, "%s", stringp);
+                break;
+              case VAR_LOCAL_PORT:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_LOCAL_PORT,
+                                     &longinfo))
+                  fprintf(stream, "%ld", longinfo);
+                break;
+              case VAR_HTTP_VERSION:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_HTTP_VERSION,
+                                     &longinfo)) {
+                  const char *version = "0";
+                  switch(longinfo) {
+                  case CURL_HTTP_VERSION_1_0:
+                    version = "1.0";
+                    break;
+                  case CURL_HTTP_VERSION_1_1:
+                    version = "1.1";
+                    break;
+                  case CURL_HTTP_VERSION_2_0:
+                    version = "2";
+                    break;
+                  }
+
+                  fprintf(stream, version);
+                }
+                break;
+              case VAR_SCHEME:
+                if(CURLE_OK ==
+                   curl_easy_getinfo(curl, CURLINFO_SCHEME,
+                                     &stringp))
+                  fprintf(stream, "%s", stringp);
+                break;
+              default:
+                break;
+              }
+              break;
+            }
+          }
+          if(!match) {
+            fprintf(stderr, "curl: unknown --write-out variable: '%s'\n", ptr);
+          }
+          ptr = end + 1; /* pass the end */
+          *end = keepit;
+        }
+        else {
+          /* illegal syntax, then just output the characters that are used */
+          fputc('%', stream);
+          fputc(ptr[1], stream);
+          ptr += 2;
+        }
+      }
+    }
+    else if('\\' == *ptr) {
+      switch(ptr[1]) {
+      case 'r':
+        fputc('\r', stream);
+        break;
+      case 'n':
+        fputc('\n', stream);
+        break;
+      case 't':
+        fputc('\t', stream);
+        break;
+      default:
+        /* unknown, just output this */
+        fputc(*ptr, stream);
+        fputc(ptr[1], stream);
+        break;
+      }
+      ptr += 2;
+    }
+    else {
+      fputc(*ptr, stream);
+      ptr++;
+    }
+  }
+
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[7/52] dlundquist___sniproxy@f8d9a433fe22ab2fa15c00179048ab02ae23d583
+SHA: f8d9a433fe22ab2fa15c00179048ab02ae23d583
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 34: score=0.6822 |             return NULL;
+- line 39: score=0.3297 |                 hostname_or_ip + 5,
+- line 90: score=0.2129 |         /* inet_pton() will not parse the IP correctly unless it is in a
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: dlundquist/sniproxy src/address.c::new_address (distance=0.0000)
+  vulnerable_before:
+struct Address *
+new_address(const char *hostname_or_ip) {
+    union {
+        struct sockaddr a;
+        struct sockaddr_in in;
+        struct sockadd...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 34: score=0.6822 |             return NULL;
+- line 39: score=0.3297 |                 hostname_or_ip + 5,
+- line 90: score=0.2129 |         /* inet_pton() will not parse the IP correctly unless it is in a
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+struct Address *
+new_address(const char *hostname_or_ip) {
+    union {
+        struct sockaddr a;
+        struct sockaddr_in in;
+        struct sockaddr_in6 in6;
+        struct sockaddr_un un;
+        struct sockaddr_sto...
+
+Extracted patch:
+struct Address *
+new_address(const char *hostname_or_ip) {
+    union {
+        struct sockaddr a;
+        struct sockaddr_in in;
+        struct sockaddr_in6 in6;
+        struct sockaddr_un un;
+        struct sockaddr_storage s;
+    } s;
+    char ip_buf[ADDRESS_BUFFER_SIZE];
+    char *port;
+    size_t len;
+
+    if (hostname_or_ip == NULL)
+        return NULL;
+
+    /* IPv6 address */
+    if (inet_pton(AF_INET6, hostname_or_ip,
+                &s.in6.sin6_addr) == 1) {
+        s.in6.sin6_family = AF_INET6;
+        if (strlen(hostname_or_ip) >= INET6_ADDRSTRLEN)
+            return NULL; // validate IPv6 address length
+        return new_address_sa(&s.a, sizeof(s.in6));
+    }
+
+    /* Unix socket */
+    if (strncmp("unix:", hostname_or_ip, 5) == 0) {
+        if (strlen(hostname_or_ip) >= sizeof(s.un.sun_path))
+            return NULL;
+        // ...
+    }
+
+    /* Trailing port */
+    if ((port = strrchr(hostname_or_ip, ':')) != NULL &&
+            is_numeric(port + 1)) {
+        len = (size_t)(port - hostname_or_ip);
+        int port_num = atoi(port + 1);
+        if (port_num < 0 || port_num > 65535)
+            return NULL; // validate port number
+        // ...
+    }
+
+    /* ... */
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[8/52] jqlang___jq@71c2ab509a8628dbbad4bc7b3f98a64aa90d3297
+SHA: 71c2ab509a8628dbbad4bc7b3f98a64aa90d3297
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 3: score=0.9310 |   decNumber *pdec = jvp_dec_number_ptr(n);
+- line 6: score=0.7895 |   if (decNumberIsNaN(pdec)) {
+- line 20: score=0.2095 |     int len = jvp_dec_number_ptr(n)->digits + 14;
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: jqlang/jq src/jv.c::jvp_literal_number_literal (distance=0.0000)
+  vulnerable_before:
+static const char* jvp_literal_number_literal(jv n) {
+  assert(JVP_HAS_FLAGS(n, JVP_FLAGS_NUMBER_LITERAL));
+  decNumber *pdec = jvp_dec_number_ptr(n);
+...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 3: score=0.9310 |   decNumber *pdec = jvp_dec_number_ptr(n);
+- line 6: score=0.7895 |   if (decNumberIsNaN(pdec)) {
+- line 20: score=0.2095 |     int len = jvp_dec_number_ptr(n)->digits + 14;
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static const char* jvp_literal_number_literal(jv n) {
+  assert(JVP_HAS_FLAGS(n, JVP_FLAGS_NUMBER_LITERAL));
+  decNumber *pdec = jvp_dec_number_ptr(n);
+  jvp_literal_number* plit = jvp_literal_number_ptr(n);
+
+  if (decNum...
+
+Extracted patch:
+if (plit->literal_data == NULL) {
+    int len = jvp_dec_number_ptr(n)->digits + 15; // Add 1 here
+    plit->literal_data = jv_mem_alloc(len);
+
+    // Preserve the actual precision as we have parsed it
+    // don't do decNumberTrim(pdec);
+
+    decNumberToString(pdec, plit->literal_data);
+}
+
+return plit->literal_data;
+
+Compile : True
+Fixed   : False
+============================================================
+[9/52] libgd___libgd@1846f48e5fcdde996e7c27a4bbac5d0aef183e4b
+SHA: 1846f48e5fcdde996e7c27a4bbac5d0aef183e4b
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 24: score=0.7333 | 		gdFree(im);
+- line 41: score=0.9272 | 			gdFree(im);
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: libgd src/gd.c::gdImageCreate (distance=0.0000)
+  vulnerable_before:
+BGD_DECLARE(gdImagePtr) gdImageCreate (int sx, int sy)
+{
+	int i;
+	gdImagePtr im;
+
+	if (overflow2(sx, sy)) {
+		return NULL;
+	}
+	if (overflow2(sizeof (unsigned char *), s...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 24: score=0.7333 | 		gdFree(im);
+- line 41: score=0.9272 | 			gdFree(im);
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+BGD_DECLARE(gdImagePtr) gdImageCreate (int sx, int sy)
+{
+	int i;
+	gdImagePtr im;
+
+	if (overflow2(sx, sy)) {
+		return NULL;
+	}
+	if (overflow2(sizeof (unsigned char *), sy)) {
+		return NULL;
+	}
+	if (overflow2(sizeof (unsig...
+
+Extracted patch:
+BGD_DECLARE(gdImagePtr) gdImageCreate (int sx, int sy)
+{
+    int i;
+    gdImagePtr im;
+
+    if (overflow2(sx, sy)) {
+        return NULL;
+    }
+
+    im = (gdImage *) gdCalloc(1, sizeof(gdImage));
+    if (!im) {
+        return NULL;
+    }
+
+    /* Row-major ever since gd 1.3 */
+    im->pixels = (unsigned char **) gdMalloc (sizeof (unsigned char *) * sy);
+    if (!im->pixels) {
+        gdFree(im);
+        return NULL;
+    }
+
+    im->polyInts = 0;
+    im->polyAllocated = 0;
+    im->brush = 0;
+    im->tile = 0;
+    im->style = 0;
+    for (i = 0; (i < sy); i++) {
+        /* Row-major ever since gd 1.3 */
+        im->pixels[i] = (unsigned char *) gdCalloc (sx, sizeof (unsigned char));
+        if (!im->pixels[i]) {
+            for (--i ; i >= 0; i--) {
+                gdFree(im->pixels[i]);
+            }
+            gdFree(im->pixels);
+            gdFree(im);
+            return NULL;
+        }
+
+    }
+    im->sx = sx;
+    im->sy = sy;
+    im->colorsTotal = 0;
+    im->transparent = (-1);
+    im->interlace = 0;
+    im->thick = 1;
+    im->AA = 0;
+    for (i = 0; (i < gdMaxColors); i++) {
+        im->open[i] = 1;
+    };
+    im->trueColor = 0;
+    im->tpixels = 0;
+    im->cx1 = 0;
+    im->cy1 = 0;
+    im->cx2 = im->sx - 1;
+    im->cy2 = im->sy - 1;
+    im->res_x = GD_RESOLUTION;
+    im->res_y = GD_RESOLUTION;
+    im->interpolation = NULL;
+    im->interpolation_id = GD_BILINEAR_FIXED;
+    return im;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[10/52] libgd___libgd@2bb97f407c1145c850416a3bfbcc8cf124e68a19
+SHA: 2bb97f407c1145c850416a3bfbcc8cf124e68a19
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 38: score=0.4140 | 	if ((*vers != 1) && (*vers != 2)) {
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: libgd src/gd_gd2.c::_gd2GetHeader (distance=0.0000)
+  vulnerable_before:
+static int
+_gd2GetHeader (gdIOCtxPtr in, int *sx, int *sy,
+               int *cs, int *vers, int *fmt, int *ncx, int *ncy,
+               t_chunk_info ** chunkIdx)...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 38: score=0.4140 | 	if ((*vers != 1) && (*vers != 2)) {
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+_gd2GetHeader (gdIOCtxPtr in, int *sx, int *sy,
+               int *cs, int *vers, int *fmt, int *ncx, int *ncy,
+               t_chunk_info ** chunkIdx)
+{
+	int i;
+	int ch;
+	char id[5];
+	t_chunk_info *cidx;
+	i...
+
+Extracted patch:
+if (gdGetInt (&cidx[i].offset, in) != 1) {
+    goto fail2;
+};
+if (gdGetInt (&cidx[i].size, in) != 1) {
+    goto fail2;
+};
+
+// Check if the offset and size values are within valid ranges
+if (cidx[i].offset < 0 || cidx[i].size < 0) {
+    // Handle invalid values as needed
+    // For example, you could set the values to default or error values
+    cidx[i].offset = -1;
+    cidx[i].size = -1;
+} else {
+    // Store the valid offset and size values in the cidx array
+    *chunkIdx = cidx;
+};
+
+Compile : True
+Fixed   : False
+============================================================
+[11/52] libgd___libgd@58b6dde319c301b0eae27d12e2a659e067d80558
+SHA: 58b6dde319c301b0eae27d12e2a659e067d80558
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 47: score=0.9820 | 		if (gdGetBuf(conversion_buffer, image_block_size, ctx) != image_block_size) {
+- line 49: score=0.7468 | 			gdFree(conversion_buffer);
+- line 58: score=0.8150 | 		gdFree(conversion_buffer);
+- line 76: score=0.9888 | 		rle_size = gdGetBuf(conversion_buffer, image_block_size, ctx);
+- line 78: score=0.3979 | 			gdFree(conversion_buffer);
+- line 79: score=0.5722 | 			gdFree(decompression_buffer);
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: libgd src/gd_tga.c::read_image_tga (distance=0.0000)
+  vulnerable_before:
+int read_image_tga( gdIOCtx *ctx, oTga *tga )
+{
+	int pixel_block_size = (tga->bits / 8);
+	int image_block_size = (tga->width * tga->height) * pixel_block_size;
+	in...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 47: score=0.9820 | 		if (gdGetBuf(conversion_buffer, image_block_size, ctx) != image_block_size) {
+- line 49: score=0.7468 | 			gdFree(conversion_buffer);
+- line 58: score=0.8150 | 		gdFree(conversion_buffer);
+- line 76: score=0.9888 | 		rle_size = gdGetBuf(conversion_buffer, image_block_size, ctx);
+- line 78: score=0.3979 | 			gdFree(conversion_buffer);
+- line 79: score=0.5722 | 			gdFree(decompression_buffer);
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+int read_image_tga( gdIOCtx *ctx, oTga *tga )
+{
+	int pixel_block_size = (tga->bits / 8);
+	int image_block_size = (tga->width * tga->height) * pixel_block_size;
+	int* decompression_buffer = NULL;
+	unsigned char* conversio...
+
+Extracted patch:
+case TGA_TYPE_RGB_RLE:
+    /*! \brief Read in RLE compressed RGB TGA
+     *  Chunk load the pixel data from an RLE compressed RGB type TGA.
+     */
+    decompression_buffer = (int*) gdMalloc(image_block_size * sizeof(int));
+    if (decompression_buffer == NULL) {
+        return -1;
+    }
+    conversion_buffer = (unsigned char *) gdMalloc(image_block_size * sizeof(unsigned char));
+    if (conversion_buffer == NULL) {
+        gdFree(decompression_buffer);
+        return -1;
+    }
+
+    rle_size = gdGetBuf(conversion_buffer, image_block_size, ctx);
+    if (rle_size <= 0) {
+        gdFree(conversion_buffer);
+        gdFree(decompression_buffer);
+        return -1;
+    }
+
+    buffer_caret = 0;
+
+    while( buffer_caret < rle_size) {
+        decompression_buffer[buffer_caret] = (int)conversion_buffer[buffer_caret];
+        buffer_caret++;
+    }
+
+    buffer_caret = 0;
+
+    while( bitmap_caret < image_block_size ) {
+
+        if ((decompression_buffer[buffer_caret] & TGA_RLE_FLAG) == TGA_RLE_FLAG) {
+            encoded_pixels = ( ( decompression_buffer[ buffer_caret ] & ~TGA_RLE_FLAG ) + 1 );
+            buffer_caret++;
+
+            if ((bitmap_caret + (encoded_pixels * pixel_block_size)) > image_block_size
+                    || buffer_caret + pixel_block_size > rle_size) {
+                gdFree(conversion_buffer);
+                gdFree(decompression_buffer);
+                return -1;
+            }
+
+            for (i = 0; i < encoded_pixels; i++) {
+                memcpy(tga->bitmap + bitmap_caret, decompression_buffer + buffer_caret, pixel_block_size * sizeof(int));
+                bitmap_caret += pixel_block_size;
+            }
+            buffer_caret += pixel_block_size;
+
+        } else {
+            encoded_pixels = decompression_buffer[ buffer_caret ] + 1;
+            buffer_caret++;
+
+            if ((bitmap_caret + (encoded_pixels * pixel_block_size)) > image_block_size
+                    || buffer_caret + (encoded_pixels * pixel_block_size) > rle_size) {
+                gdFree(conversion_buffer);
+                gdFree(decompression_buffer);
+                return -1;
+            }
+
+            memcpy(tga->bitmap + bitmap_caret, decompression_buffer + buffer_caret, encoded_pixels * pixel_block_size * sizeof(int));
+            bitmap_caret += (encoded_pixels * pixel_block_size);
+            buffer_caret += (encoded_pixels * pixel_block_size);
+        }
+    }
+    gdFree(conversion_buffer);
+    gdFree(decompression_buffer);
+    break;
+
+Compile : True
+Fixed   : False
+============================================================
+[12/52] libgd___libgd@69d2fd2c597ffc0c217de1238b9bf4d4bceba8e6
+SHA: 69d2fd2c597ffc0c217de1238b9bf4d4bceba8e6
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 38: score=0.4140 | 	if ((*vers != 1) && (*vers != 2)) {
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: libgd src/gd_gd2.c::_gd2GetHeader (distance=0.0000)
+  vulnerable_before:
+static int
+_gd2GetHeader (gdIOCtxPtr in, int *sx, int *sy,
+               int *cs, int *vers, int *fmt, int *ncx, int *ncy,
+               t_chunk_info ** chunkIdx)...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 38: score=0.4140 | 	if ((*vers != 1) && (*vers != 2)) {
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+_gd2GetHeader (gdIOCtxPtr in, int *sx, int *sy,
+               int *cs, int *vers, int *fmt, int *ncx, int *ncy,
+               t_chunk_info ** chunkIdx)
+{
+	int i;
+	int ch;
+	char id[5];
+	t_chunk_info *cidx;
+	i...
+
+Extracted patch:
+if (*ncx <= 0 || *ncy <= 0 || *ncx > INT_MAX / *ncy) {
+    GD2_DBG(printf ("Illegal chunk counts: %d * %d\n", *ncx, *ncy));
+    goto fail1;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[13/52] libgd___libgd@77f619d48259383628c3ec4654b1ad578e9eb40e
+SHA: 77f619d48259383628c3ec4654b1ad578e9eb40e
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 9: score=0.9968 | 	if (border < 0) {
+- line 29: score=0.5361 | 	
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: libgd src/gd.c::gdImageFillToBorder (distance=0.0000)
+  vulnerable_before:
+BGD_DECLARE(void) gdImageFillToBorder (gdImagePtr im, int x, int y, int border, int color)
+{
+	int lastBorder;
+	/* Seek left */
+	int leftLimit, rightLimit;
+	int i;...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 9: score=0.9968 | 	if (border < 0) {
+- line 29: score=0.5361 | 	
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+BGD_DECLARE(void) gdImageFillToBorder (gdImagePtr im, int x, int y, int border, int color)
+{
+	int lastBorder;
+	/* Seek left */
+	int leftLimit, rightLimit;
+	int i;
+	int restoreAlphaBleding;
+
+	if (border < 0) {
+		/* Refuse...
+
+Extracted patch:
+if (border < 0 || color < 0) {
+    /* Refuse to fill to a non-solid border */
+    return;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[14/52] libuv___libuv@3530bcc30350d4a6ccf35d2f7b33e23292b9de70
+SHA: 3530bcc30350d4a6ccf35d2f7b33e23292b9de70
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 42: score=0.9813 |   if (d >= de)
+- line 45: score=0.9799 |   *d++ = '\0';
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: libuv src/idna.c::uv__idna_toascii (distance=0.0000)
+  vulnerable_before:
+ssize_t uv__idna_toascii(const char* s, const char* se, char* d, char* de) {
+  const char* si;
+  const char* st;
+  unsigned c;
+  char* ds;
+  int rc;
+
+  ds = d;
+
+  ...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 42: score=0.9813 |   if (d >= de)
+- line 45: score=0.9799 |   *d++ = '\0';
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+ssize_t uv__idna_toascii(const char* s, const char* se, char* d, char* de) {
+  const char* si;
+  const char* st;
+  unsigned c;
+  char* ds;
+  int rc;
+
+  ds = d;
+
+  si = s;
+  while (si < se) {
+    st = si;
+    c = uv__utf8...
+
+Extracted patch:
+ssize_t uv__idna_toascii(const char* s, const char* se, char* d, char* de) {
+  const char* si;
+  const char* st;
+  unsigned c;
+  char* ds;
+  int rc;
+
+  if (s == se)
+    return UV_EINVAL; // Check if s and se are equal
+
+  ds = d;
+
+  si = s;
+  while (si < se) {
+    st = si;
+    c = uv__utf8_decode1(&si, se);
+
+    if (c == UINT_MAX)
+      return UV_EINVAL;
+
+    if (c != '.')
+      if (c != 0x3002)  /* 。 */
+        if (c != 0xFF0E)  /* ． */
+          if (c != 0xFF61)  /* ｡ */
+            continue;
+
+    rc = uv__idna_toascii_label(s, st, &d, de);
+
+    if (rc < 0)
+      return rc;
+
+    if (d < de)
+      *d++ = '.';
+
+    s = si;
+  }
+
+  if (s < se) {
+    rc = uv__idna_toascii_label(s, se, &d, de);
+
+    if (rc < 0)
+      return rc;
+  }
+
+  if (d >= de)
+    return UV_EINVAL;
+
+  *d++ = '\0';
+  return d - ds;  /* Number of bytes written. */
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[15/52] lua___lua@1f3c6f4534c6411313361697d98d1145a1f030fa
+SHA: 1f3c6f4534c6411313361697d98d1145a1f030fa
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 7: score=0.1267 |     singlevaraux(fs, ls->envn, var, 1);  /* get environment variable */
+- line 8: score=0.0008 |     lua_assert(var->k != VVOID);  /* this one must exist */
+- line 1: score=0.0001 | static void singlevar (LexState *ls, expdesc *var) {
+- line 2: score=0.0001 |   TString *varname = str_checkname(ls);
+- line 3: score=0.0001 |   FuncState *fs = ls->fs;
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: lua lparser.c::singlevar (distance=0.0000)
+  vulnerable_before:
+static void singlevar (LexState *ls, expdesc *var) {
+  TString *varname = str_checkname(ls);
+  FuncState *fs = ls->fs;
+  singlevaraux(fs, varname, var, 1);
+  if (var->k == V...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 7: score=0.1267 |     singlevaraux(fs, ls->envn, var, 1);  /* get environment variable */
+- line 8: score=0.0008 |     lua_assert(var->k != VVOID);  /* this one must exist */
+- line 1: score=0.0001 | static void singlevar (LexState *ls, expdesc *var) {
+- line 2: score=0.0001 |   TString *varname = str_checkname(ls);
+- line 3: score=0.0001 |   FuncState *fs = ls->fs;
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static void singlevar (LexState *ls, expdesc *var) {
+  TString *varname = str_checkname(ls);
+  FuncState *fs = ls->fs;
+  singlevaraux(fs, varname, var, 1);
+  if (var->k == VVOID) {  /* global name? */
+    expdesc key;
+  ...
+
+Extracted patch:
+static void singlevar (LexState *ls, expdesc *var) {
+  TString *varname = str_checkname(ls);
+  FuncState *fs = ls->fs;
+  singlevaraux(fs, varname, var, 1);
+  if (var->k == VVOID) {  /* global name? */
+    expdesc key;
+    singlevaraux(fs, ls->envn, var, 1);  /* get environment variable */
+    lua_assert(var->k != VVOID);  /* this one must exist */
+    codestring(&key, varname);  /* key is variable name */
+    if (var->k != VVOID) {
+      luaK_indexed(fs, var, &key);  /* env[varname] */
+    }
+  }
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[16/52] nginx___njs@2e00e95473861846aa8538be87db07699d9f676d
+SHA: 2e00e95473861846aa8538be87db07699d9f676d
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 60: score=0.5452 |     if (njs_fast_path(njs_is_fast_array(this) && deleted->object.fast_array)) {
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: nginx/njs src/njs_array.c::njs_array_prototype_splice (distance=0.0000)
+  vulnerable_before:
+static njs_int_t
+njs_array_prototype_splice(njs_vm_t *vm, njs_value_t *args, njs_uint_t nargs,
+    njs_index_t unused)
+{
+    int64_t      i, n, ...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 60: score=0.5452 |     if (njs_fast_path(njs_is_fast_array(this) && deleted->object.fast_array)) {
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static njs_int_t
+njs_array_prototype_splice(njs_vm_t *vm, njs_value_t *args, njs_uint_t nargs,
+    njs_index_t unused)
+{
+    int64_t      i, n, start, length, items, delta, delete;
+    njs_int_t    ret;
+    njs_value_t  ...
+
+Extracted patch:
+} else {
+    njs_set_array(&del_object, deleted);
+
+    for (i = 0, n = start; i < delete; i++, n++) {
+        ret = njs_value_property_i64(vm, this, n, &value);
+        if (njs_slow_path(ret == NJS_ERROR)) {
+            return NJS_ERROR;
+        }
+
+        if (ret == NJS_OK) {
+            /* TODO:  CreateDataPropertyOrThrow(). */
+            ret = njs_value_property_i64_set(vm, &del_object, i, &value);
+            if (njs_slow_path(ret == NJS_ERROR)) {
+                return ret;
+            }
+        } else {
+            if (deleted->object.fast_array) {
+                njs_set_invalid(&deleted->start[i]);
+            }
+        }
+    }
+
+    ret = njs_object_length_set(vm, &del_object, delete);
+    if (njs_slow_path(ret != NJS_OK)) {
+        return NJS_ERROR;
+    }
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[17/52] nginx___njs@5c6130a2a0b4c41ab415f6b8992aa323636338b9
+SHA: 5c6130a2a0b4c41ab415f6b8992aa323636338b9
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 21: score=0.9842 |     njs_set_number(setval, num);
+- line 22: score=0.9969 | 
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: nginx/njs src/njs_typed_array.c::njs_typed_array_set_value (distance=0.0000)
+  vulnerable_before:
+njs_int_t
+njs_typed_array_set_value(njs_vm_t *vm, njs_typed_array_t *array,
+    uint32_t index, njs_value_t *setval)
+{
+    double          ...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 21: score=0.9842 |     njs_set_number(setval, num);
+- line 22: score=0.9969 | 
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+njs_int_t
+njs_typed_array_set_value(njs_vm_t *vm, njs_typed_array_t *array,
+    uint32_t index, njs_value_t *setval)
+{
+    double              num;
+    njs_int_t           ret;
+    njs_array_buffer_t  *buffer;
+
+    ret =...
+
+Extracted patch:
+njs_int_t
+njs_typed_array_set_value(njs_vm_t *vm, njs_typed_array_t *array,
+    uint32_t index, njs_value_t *setval)
+{
+    double              num;
+    njs_int_t           ret;
+    njs_array_buffer_t  *buffer;
+
+    ret = njs_value_to_number(vm, setval, &num);
+    if (njs_slow_path(ret != NJS_OK)) {
+        return ret;
+    }
+
+    buffer = njs_typed_array_writable(vm, array);
+    if (njs_slow_path(buffer == NULL)) {
+        return NJS_ERROR;
+    }
+
+    njs_typed_array_prop_set(vm, array, index, num);
+
+    // No need to set the value of the entire typed array
+    //return NJS_OK;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[18/52] nginx___njs@81af26364c21c196dd21fb5e14c7fa9ce7debd17
+SHA: 81af26364c21c196dd21fb5e14c7fa9ce7debd17
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 27: score=0.9961 |     njs_mp_free(vm->mem_pool, array->start);
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: nginx/njs src/njs_array.c::njs_array_convert_to_slow_array (distance=0.0000)
+  vulnerable_before:
+njs_int_t
+njs_array_convert_to_slow_array(njs_vm_t *vm, njs_array_t *array)
+{
+    uint32_t           i, length;
+    njs_value_t        inde...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 27: score=0.9961 |     njs_mp_free(vm->mem_pool, array->start);
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+njs_int_t
+njs_array_convert_to_slow_array(njs_vm_t *vm, njs_array_t *array)
+{
+    uint32_t           i, length;
+    njs_value_t        index, value;
+    njs_object_prop_t  *prop;
+
+    njs_set_array(&value, array);
+    ar...
+
+Extracted patch:
+njs_int_t
+njs_array_convert_to_slow_array(njs_vm_t *vm, njs_array_t *array)
+{
+    uint32_t           i, length;
+    njs_value_t        index, value;
+    njs_object_prop_t  *prop;
+
+    if (njs_slow_path(!array->object.fast_array)) {
+        return NJS_OK;
+    }
+
+    if (!njs_is_valid(array)) {
+        return NJS_ERROR;
+    }
+
+    njs_set_array(&value, array);
+    array->object.fast_array = 0;
+
+    length = array->length;
+
+    for (i = 0; i < length; i++) {
+        if (njs_is_valid(&array->start[i])) {
+            njs_uint32_to_string(&index, i);
+            prop = njs_object_property_add(vm, &value, &index, 0);
+            if (njs_slow_path(prop == NULL)) {
+                return NJS_ERROR;
+            }
+
+            prop->value = array->start[i];
+        }
+    }
+
+    /* GC: release value. */
+
+    njs_mp_free(vm->mem_pool, array->start);
+    array->start = NULL;
+
+    return NJS_OK;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[19/52] nginx___njs@8b39afdad9a0761e0a5d4af1a762bd9a6daef572
+SHA: 8b39afdad9a0761e0a5d4af1a762bd9a6daef572
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 53: score=0.4054 |         start = array->start;
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: nginx/njs src/njs_array.c::njs_array_prototype_sort (distance=0.0000)
+  vulnerable_before:
+static njs_int_t
+njs_array_prototype_sort(njs_vm_t *vm, njs_value_t *args, njs_uint_t nargs,
+    njs_index_t unused)
+{
+    int64_t                ...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 53: score=0.4054 |         start = array->start;
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static njs_int_t
+njs_array_prototype_sort(njs_vm_t *vm, njs_value_t *args, njs_uint_t nargs,
+    njs_index_t unused)
+{
+    int64_t                i, und, len, nlen, length;
+    njs_int_t              ret, fast_path;
+    ...
+
+Extracted patch:
+if (njs_fast_path(fast_path)) {
+    array = njs_array(this);
+    start = array->start;
+
+    for (i = 0; i < len; i++) {
+        start[i] = slots[i].value;
+    }
+
+    for (i = len; und-- > 0; i++) {
+        start[i] = njs_value_undefined;
+    }
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[20/52] nginx___njs@ab1702c7af9959366a5ddc4a75b4357d4e9ebdc1
+SHA: ab1702c7af9959366a5ddc4a75b4357d4e9ebdc1
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 13: score=0.9684 |         length = dir->length;
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: nginx/njs src/njs_module.c::njs_module_path (distance=0.0000)
+  vulnerable_before:
+static njs_int_t
+njs_module_path(njs_vm_t *vm, const njs_str_t *dir, njs_module_info_t *info)
+{
+    char        *p;
+    size_t      length;
+    njs_bool_t...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 13: score=0.9684 |         length = dir->length;
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static njs_int_t
+njs_module_path(njs_vm_t *vm, const njs_str_t *dir, njs_module_info_t *info)
+{
+    char        *p;
+    size_t      length;
+    njs_bool_t  trail;
+    char        src[NJS_MAX_PATH + 1];
+
+    trail = 0;
+  ...
+
+Extracted patch:
+static njs_int_t
+njs_module_path(njs_vm_t *vm, const njs_str_t *dir, njs_module_info_t *info)
+{
+    char        *p;
+    size_t      length;
+    njs_bool_t  trail;
+    char        src[NJS_MAX_PATH + 1];
+
+    trail = 0;
+    length = info->name.length;
+
+    if (dir != NULL) {
+        length += dir->length;
+
+        if (length == 0) {
+            return NJS_DECLINED;
+        }
+
+        trail = (dir->start[dir->length - 1] != '/');
+
+        if (trail) {
+            length++;
+        }
+    }
+
+    if (njs_slow_path(length > NJS_MAX_PATH)) {
+        return NJS_ERROR;
+    }
+
+    p = &src[0];
+
+    if (dir != NULL) {
+        p = (char *) njs_cpymem(p, dir->start, dir->length);
+
+        if (trail) {
+            *p++ = '/';
+        }
+    }
+
+    p = (char *) njs_cpymem(p, info->name.start, info->name.length);
+    *p = '\0';
+
+    p = realpath(&src[0], &info->path[0]);
+    if (p == NULL) {
+        return NJS_DECLINED;
+    }
+
+    info->fd = open(&info->path[0], O_RDONLY);
+    if (info->fd < 0) {
+        return NJS_DECLINED;
+    }
+
+
+    info->file.start = (u_char *) &info->path[0];
+    info->file.length = njs_strlen(info->file.start);
+
+    return NJS_OK;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[21/52] nginx___njs@d457c9545e7e71ebb5c0479eb16b9d33175855e2
+SHA: d457c9545e7e71ebb5c0479eb16b9d33175855e2
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 35: score=0.1769 |     vm->retval = *types[value->type];
+- line 2: score=0.0017 | njs_vmcode_typeof(njs_vm_t *vm, njs_value_t *value, njs_value_t *invld)
+- line 4: score=0.0003 |     /* ECMAScript 5.1: null, array and regexp are objects. */
+- line 5: score=0.0003 | 
+- line 27: score=0.0003 |         &njs_string_object,
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: nginx/njs src/njs_vmcode.c::njs_vmcode_typeof (distance=0.0000)
+  vulnerable_before:
+static njs_jump_off_t
+njs_vmcode_typeof(njs_vm_t *vm, njs_value_t *value, njs_value_t *invld)
+{
+    /* ECMAScript 5.1: null, array and regexp are object...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 35: score=0.1769 |     vm->retval = *types[value->type];
+- line 2: score=0.0017 | njs_vmcode_typeof(njs_vm_t *vm, njs_value_t *value, njs_value_t *invld)
+- line 4: score=0.0003 |     /* ECMAScript 5.1: null, array and regexp are objects. */
+- line 5: score=0.0003 | 
+- line 27: score=0.0003 |         &njs_string_object,
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static njs_jump_off_t
+njs_vmcode_typeof(njs_vm_t *vm, njs_value_t *value, njs_value_t *invld)
+{
+    /* ECMAScript 5.1: null, array and regexp are objects. */
+
+    static const njs_value_t  *types[NJS_VALUE_TYPE_MAX] = {
+...
+
+Extracted patch:
+static njs_jump_off_t
+njs_vmcode_typeof(njs_vm_t *vm, njs_value_t *value, njs_value_t *invld)
+{
+    /* ECMAScript 5.1: null, array and regexp are objects. */
+
+    static const njs_value_t  *types[NJS_VALUE_TYPE_MAX] = {
+        // ...
+    };
+
+    if (value->type >= NJS_VALUE_TYPE_MAX) {
+        // Handle out-of-bounds error
+        return sizeof(njs_vmcode_2addr_t);
+    }
+
+    vm->retval = *types[value->type];
+
+    return sizeof(njs_vmcode_2addr_t);
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[22/52] nginx___njs@f65981b0b8fcf02d69a40bc934803c25c9f607ab
+SHA: f65981b0b8fcf02d69a40bc934803c25c9f607ab
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 5: score=0.0031 |     njs_array_t         *array;
+- line 2: score=0.0015 | njs_vmcode_array(njs_vm_t *vm, u_char *pc)
+- line 24: score=0.0005 |             } while (length != 0);
+- line 11: score=0.0002 |     array = njs_array_alloc(vm, 0, code->length, NJS_ARRAY_SPARE);
+- line 28: score=0.0002 |             array->length = 0;
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: nginx/njs src/njs_vmcode.c::njs_vmcode_array (distance=0.0000)
+  vulnerable_before:
+static njs_jump_off_t
+njs_vmcode_array(njs_vm_t *vm, u_char *pc)
+{
+    uint32_t            length;
+    njs_array_t         *array;
+    njs_value_t       ...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 5: score=0.0031 |     njs_array_t         *array;
+- line 2: score=0.0015 | njs_vmcode_array(njs_vm_t *vm, u_char *pc)
+- line 24: score=0.0005 |             } while (length != 0);
+- line 11: score=0.0002 |     array = njs_array_alloc(vm, 0, code->length, NJS_ARRAY_SPARE);
+- line 28: score=0.0002 |             array->length = 0;
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static njs_jump_off_t
+njs_vmcode_array(njs_vm_t *vm, u_char *pc)
+{
+    uint32_t            length;
+    njs_array_t         *array;
+    njs_value_t         *value;
+    njs_vmcode_array_t  *code;
+
+    code = (njs_vmcode_ar...
+
+Extracted patch:
+if (code->ctor) {
+    /* Array of the form [,,,], [1,,]. */
+    if (array->object.fast_array) {
+        value = array->start;
+        length = array->length;
+
+        do {
+            njs_set_invalid(value);
+            value++;
+            length--;
+        } while (length != 0);
+    }
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[23/52] php___php-src@1cda0d7c2ffb62d8331c64e703131d9cabdc03ea
+SHA: 1cda0d7c2ffb62d8331c64e703131d9cabdc03ea
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 26: score=0.9875 | 				return php_ifd_get32s(value, motorola_intel) / s_den;
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: php/php-src ext/exif/exif.c::exif_convert_any_to_int (distance=0.0000)
+  vulnerable_before:
+static size_t exif_convert_any_to_int(void *value, int format, int motorola_intel TSRMLS_DC)
+{
+	int 		s_den;
+	unsigned 	u_den;
+
+	switch(format) {...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 26: score=0.9875 | 				return php_ifd_get32s(value, motorola_intel) / s_den;
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static size_t exif_convert_any_to_int(void *value, int format, int motorola_intel TSRMLS_DC)
+{
+	int 		s_den;
+	unsigned 	u_den;
+
+	switch(format) {
+		case TAG_FMT_SBYTE:     return *(signed char *)value;
+		case TAG_FMT_BYT...
+
+Extracted patch:
+return (size_t)((double)php_ifd_get32s(value, motorola_intel) / s_den);
+
+Compile : True
+Fixed   : True
+============================================================
+[24/52] php___php-src@28a6ed9f9a36b9c517e4a8a429baf4dd382fc5d5
+SHA: 28a6ed9f9a36b9c517e4a8a429baf4dd382fc5d5
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 22: score=0.0063 | 		if (index < 0 || index >= intern->llist->count) {
+- line 6: score=0.0007 | 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "zz", &zindex, &value) == FAILURE) {
+- line 17: score=0.0006 | 		zend_long                   index;
+- line 12: score=0.0002 | 	if (Z_TYPE_P(zindex) == IS_NULL) {
+- line 21: score=0.0002 | 
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: php/php-src ext/spl/spl_directory.c::spl_filesystem_object_get_method_check (distance=0.4146)
+  vulnerable_before:
+zend_function *spl_filesystem_object_get_method_check(zval **object_ptr, char *method, int method_len, const struct _zend_...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 22: score=0.0063 | 		if (index < 0 || index >= intern->llist->count) {
+- line 6: score=0.0007 | 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "zz", &zindex, &value) == FAILURE) {
+- line 17: score=0.0006 | 		zend_long                   index;
+- line 12: score=0.0002 | 	if (Z_TYPE_P(zindex) == IS_NULL) {
+- line 21: score=0.0002 | 
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+SPL_METHOD(SplDoublyLinkedList, offsetSet)
+{
+	zval                  *zindex, *value;
+	spl_dllist_object     *intern;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "zz", &zindex, &value) == FAILURE) {
+		return;
+	}
+
+	intern...
+
+Extracted patch:
+SPL_METHOD(SplDoublyLinkedList, offsetSet)
+{
+    zval                  *zindex, *value;
+    spl_dllist_object     *intern;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "zz", &zindex, &value) == FAILURE) {
+        return;
+    }
+
+    intern = Z_SPLDLLIST_P(getThis());
+
+    if (Z_TYPE_P(zindex) == IS_NULL) {
+        /* $obj[] = ... */
+        spl_ptr_llist_push(intern->llist, value);
+    } else {
+        /* $obj[$foo] = ... */
+        zend_long                   index;
+        spl_ptr_llist_element *element;
+
+        index = spl_offset_convert_to_long(zindex);
+
+        if (index < 0 || index >= intern->llist->count) {
+            ZVAL_COPY_VALUE(&element->data, value);
+            /* new element, call ctor as in spl_ptr_llist_push */
+            if (intern->llist->ctor) {
+                intern->llist->ctor(element);
+            }
+        } else {
+            element = spl_ptr_llist_offset(intern->llist, index, intern->flags & SPL_DLLIST_IT_LIFO);
+
+            if (element != NULL) {
+                /* call dtor on the old element as in spl_ptr_llist_pop */
+                if (intern->llist->dtor) {
+                    intern->llist->dtor(element);
+                }
+
+                /* the element is replaced, delref the old one as in
+                 * SplDoublyLinkedList::pop() */
+                zval_ptr_dtor(&element->data);
+
+                ZVAL_COPY_VALUE(&element->data, value);
+
+                /* new element, call ctor as in spl_ptr_llist_push */
+                if (intern->llist->ctor) {
+                    intern->llist->ctor(element);
+                }
+            } else {
+                ZVAL_COPY_VALUE(&element->data, value);
+                /* new element, call ctor as in spl_ptr_llist_push */
+                if (intern->llist->ctor) {
+                    intern->llist->ctor(element);
+                }
+            }
+        }
+    }
+} /* }}} */
+
+Compile : True
+Fixed   : False
+============================================================
+[25/52] php___php-src@863d37ea66d5c960db08d6f4a2cbd2518f0f80d1
+SHA: 863d37ea66d5c960db08d6f4a2cbd2518f0f80d1
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 8: score=0.9975 | 	if (border < 0) {
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: php/php-src ext/gd/libgd/gd.c::gdImageFillToBorder (distance=0.0000)
+  vulnerable_before:
+void gdImageFillToBorder (gdImagePtr im, int x, int y, int border, int color)
+{
+	int lastBorder;
+	/* Seek left */
+	int leftLimit = -1, rightLimit;
+...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 8: score=0.9975 | 	if (border < 0) {
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+void gdImageFillToBorder (gdImagePtr im, int x, int y, int border, int color)
+{
+	int lastBorder;
+	/* Seek left */
+	int leftLimit = -1, rightLimit;
+	int i, restoreAlphaBlending = 0;
+
+	if (border < 0) {
+		/* Refuse to fill...
+
+Extracted patch:
+void gdImageFillToBorder (gdImagePtr im, int x, int y, int border, int color)
+{
+    // ... (rest of the function remains the same)
+
+    if (border < 0 || color < 0) {
+        /* Refuse to fill to a non-solid border */
+        return;
+    }
+
+    // ... (rest of the function remains the same)
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[26/52] php___php-src@b88393f08a558eec14964a55d3c680fe67407712
+SHA: b88393f08a558eec14964a55d3c680fe67407712
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 7: score=0.9965 | 			if (((st_entry *)stack->elements[i])->data)	{
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: php/php-src ext/wddx/wddx.c::wddx_stack_destroy (distance=0.0000)
+  vulnerable_before:
+static int wddx_stack_destroy(wddx_stack *stack)
+{
+	register int i;
+
+	if (stack->elements) {
+		for (i = 0; i < stack->top; i++) {
+			if (((st_entry *)...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 7: score=0.9965 | 			if (((st_entry *)stack->elements[i])->data)	{
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int wddx_stack_destroy(wddx_stack *stack)
+{
+	register int i;
+
+	if (stack->elements) {
+		for (i = 0; i < stack->top; i++) {
+			if (((st_entry *)stack->elements[i])->data)	{
+				zval_ptr_dtor(&((st_entry *)stack->el...
+
+Extracted patch:
+static int wddx_stack_destroy(wddx_stack *stack)
+{
+    register int i;
+
+    if (stack->elements) {
+        for (i = 0; i < stack->top; i++) {
+            if (((st_entry *)stack->elements[i])->data && ((st_entry *)stack->elements[i])->data != NULL) {
+                zval_ptr_dtor(&((st_entry *)stack->elements[i])->data);
+            }
+            if (((st_entry *)stack->elements[i])->varname) {
+                efree(((st_entry *)stack->elements[i])->varname);
+            }
+            efree(stack->elements[i]);
+        }
+        efree(stack->elements);
+    }
+    return SUCCESS;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[27/52] redis___hiredis@76a7b10005c70babee357a7d0f2becf28ec7ed1e
+SHA: 76a7b10005c70babee357a7d0f2becf28ec7ed1e
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 8: score=0.0186 |     if (elements > 0) {
+- line 7: score=0.0002 | 
+- line 9: score=0.0002 |         r->element = hi_calloc(elements,sizeof(redisReply*));
+- line 1: score=0.0001 | static void *createArrayObject(const redisReadTask *task, size_t elements) {
+- line 2: score=0.0001 |     redisReply *r, *parent;
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: redis deps/hiredis/hiredis.c::createArrayObject (distance=0.0000)
+  vulnerable_before:
+static void *createArrayObject(const redisReadTask *task, size_t elements) {
+    redisReply *r, *parent;
+
+    r = createReplyObject(task->type);
+    i...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 8: score=0.0186 |     if (elements > 0) {
+- line 7: score=0.0002 | 
+- line 9: score=0.0002 |         r->element = hi_calloc(elements,sizeof(redisReply*));
+- line 1: score=0.0001 | static void *createArrayObject(const redisReadTask *task, size_t elements) {
+- line 2: score=0.0001 |     redisReply *r, *parent;
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static void *createArrayObject(const redisReadTask *task, size_t elements) {
+    redisReply *r, *parent;
+
+    r = createReplyObject(task->type);
+    if (r == NULL)
+        return NULL;
+
+    if (elements > 0) {
+        r-...
+
+Extracted patch:
+static void *createArrayObject(const redisReadTask *task, size_t elements) {
+    redisReply *r, *parent;
+
+    r = createReplyObject(task->type);
+    if (r == NULL)
+        return NULL;
+
+    if (elements > 0) {
+        if (SIZE_MAX / sizeof(redisReply*) < elements) return NULL;  /* Don't overflow */
+        r->element = hi_calloc(elements,sizeof(redisReply*));
+        if (r->element == NULL) {
+            freeReplyObject(r);
+            return NULL;
+        }
+    }
+
+    r->elements = elements;
+
+    if (task->parent) {
+        parent = task->parent->obj;
+        assert(parent->type == REDIS_REPLY_ARRAY ||
+               parent->type == REDIS_REPLY_MAP ||
+               parent->type == REDIS_REPLY_SET ||
+               parent->type == REDIS_REPLY_PUSH);
+        parent->element[task->idx] = r;
+    }
+    return r;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[28/52] redis___redis@bc7fe41e5857a0854d524e2a63a028e9394d2a5c
+SHA: bc7fe41e5857a0854d524e2a63a028e9394d2a5c
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 25: score=0.1476 |     if (isnan(value) || isinf(value)) {
+- line 31: score=0.0701 |     int len = ld2string(buf,sizeof(buf),value,LD_STR_HUMAN);
+- line 7: score=0.0026 |     unsigned int vlen;
+- line 6: score=0.0010 |     unsigned char *vstr;
+- line 30: score=0.0008 |     char buf[MAX_LONG_DOUBLE_CHARS];
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: redis src/t_hash.c::hincrbyfloatCommand (distance=0.0000)
+  vulnerable_before:
+void hincrbyfloatCommand(client *c) {
+    long double value, incr;
+    long long ll;
+    robj *o;
+    sds new;
+    unsigned char *vstr;
+    unsigned int vlen;...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 25: score=0.1476 |     if (isnan(value) || isinf(value)) {
+- line 31: score=0.0701 |     int len = ld2string(buf,sizeof(buf),value,LD_STR_HUMAN);
+- line 7: score=0.0026 |     unsigned int vlen;
+- line 6: score=0.0010 |     unsigned char *vstr;
+- line 30: score=0.0008 |     char buf[MAX_LONG_DOUBLE_CHARS];
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+void hincrbyfloatCommand(client *c) {
+    long double value, incr;
+    long long ll;
+    robj *o;
+    sds new;
+    unsigned char *vstr;
+    unsigned int vlen;
+
+    if (getLongDoubleFromObjectOrReply(c,c->argv[3],&incr,NU...
+
+Extracted patch:
+void hincrbyfloatCommand(client *c) {
+    long double value, incr;
+    long long ll;
+    robj *o;
+    sds new;
+    unsigned char *vstr;
+    unsigned int vlen;
+
+    if (getLongDoubleFromObjectOrReply(c,c->argv[3],&incr,NULL) != C_OK) return;
+    if (isnan(incr) || isinf(incr)) {
+        addReplyError(c,"value is NaN or Infinity");
+        return;
+    }
+    if ((o = hashTypeLookupWriteOrCreate(c,c->argv[1])) == NULL) return;
+    if (hashTypeGetValue(o,c->argv[2]->ptr,&vstr,&vlen,&ll) == C_OK) {
+        if (vstr) {
+            if (string2ld((char*)vstr,vlen,&value) == 0) {
+                addReplyError(c,"hash value is not a float");
+                return;
+            }
+        } else {
+            value = (long double)ll;
+        }
+    } else {
+        value = 0;
+    }
+
+    value += incr;
+    if (isnan(value) || isinf(value)) {
+        addReplyError(c,"increment would produce NaN or Infinity");
+        return;
+    }
+
+    char buf[MAX_LONG_DOUBLE_CHARS];
+    int len = ld2string(buf,sizeof(buf),value,LD_STR_HUMAN);
+    new = sdsnewlen(buf,len);
+    hashTypeSet(o,c->argv[2]->ptr,new,HASH_SET_TAKE_VALUE);
+    addReplyBulkCBuffer(c,buf,len);
+    signalModifiedKey(c,c->db,c->argv[1]);
+    notifyKeyspaceEvent(NOTIFY_HASH,"hincrbyfloat",c->argv[1],c->db->id);
+    server.dirty++;
+
+    /* Always replicate HINCRBYFLOAT as an HSET command with the final value
+     * in order to make sure that differences in float precision or formatting
+     * will not create differences in replicas or after an AOF restart. */
+    robj *newobj;
+    newobj = createRawStringObject(buf,len);
+    rewriteClientCommandArgument(c,0,shared.hset);
+    rewriteClientCommandArgument(c,3,newobj);
+    decrRefCount(newobj);
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[29/52] sqlite___sqlite@54d501092d88c0cf89bec4279951f548fb0b8618
+SHA: 54d501092d88c0cf89bec4279951f548fb0b8618
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 76: score=0.8602 |         if( iMethod!=0 && iMethod!=8 ){
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: sqlite ext/misc/zipfile.c::zipfileUpdate (distance=0.0000)
+  vulnerable_before:
+static int zipfileUpdate(
+  sqlite3_vtab *pVtab, 
+  int nVal, 
+  sqlite3_value **apVal, 
+  sqlite_int64 *pRowid
+){
+  ZipfileTab *pTab = (ZipfileTab*)pVtab;
+ ...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 76: score=0.8602 |         if( iMethod!=0 && iMethod!=8 ){
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int zipfileUpdate(
+  sqlite3_vtab *pVtab, 
+  int nVal, 
+  sqlite3_value **apVal, 
+  sqlite_int64 *pRowid
+){
+  ZipfileTab *pTab = (ZipfileTab*)pVtab;
+  int rc = SQLITE_OK;             /* Return Code */
+  ZipfileEnt...
+
+Extracted patch:
+static int zipfileUpdate(
+  sqlite3_vtab *pVtab, 
+  int nVal, 
+  sqlite3_value **apVal, 
+  sqlite_int64 *pRowid
+){
+  ZipfileTab *pTab = (ZipfileTab*)pVtab;
+  int rc = SQLITE_OK;             /* Return Code */
+  ZipfileEntry *pNew = 0;         /* New in-memory CDS entry */
+
+  u32 mode = 0;                   /* Mode for new entry */
+  u32 mTime = 0;                  /* Modification time for new entry */
+  i64 sz = 0;                     /* Uncompressed size */
+  const char *zPath = 0;          /* Path for new entry */
+  int nPath = 0;                  /* strlen(zPath) */
+  const u8 *pData = 0;            /* Pointer to buffer containing content */
+  int nData = 0;                  /* Size of pData buffer in bytes */
+  int iMethod = 0;                /* Compression method for new entry */
+  u8 *pFree = 0;                  /* Free this */
+  char *zFree = 0;                /* Also free this */
+  ZipfileEntry *pOld = 0;
+  ZipfileEntry *pOld2 = 0;
+  int bUpdate = 0;                /* True for an update that modifies "name" */
+  int bIsDir = 0;
+  u32 iCrc32 = 0;
+
+  if( pTab->pWriteFd==0 ){
+    rc = zipfileBegin(pVtab);
+    if( rc!=SQLITE_OK ) return rc;
+  }
+
+  /* If this is a DELETE or UPDATE, find the archive entry to delete. */
+  if( sqlite3_value_type(apVal[0])!=SQLITE_NULL ){
+    const char *zDelete = (const char*)sqlite3_value_text(apVal[0]);
+    int nDelete = (int)strlen(zDelete);
+    if( nVal>1 ){
+      const char *zUpdate = (const char*)sqlite3_value_text(apVal[1]);
+      if( zUpdate && zipfileComparePath(zUpdate, zDelete, nDelete)!=0 ){
+        bUpdate = 1;
+      }
+    }
+    for(pOld=pTab->pFirstEntry; pOld; pOld=pOld->pNext){
+      if( zipfileComparePath(pOld->cds.zFile, zDelete, nDelete)==0 ){
+        break;
+      }
+      assert( pOld->pNext );
+    }
+  }
+
+  if( nVal>1 ){
+    /* Check that "sz" and "rawdata" are both NULL: */
+    if( sqlite3_value_type(apVal[5])!=SQLITE_NULL ){
+      zipfileTableErr(pTab, "sz must be NULL");
+      rc = SQLITE_CONSTRAINT;
+    }
+    if( sqlite3_value_type(apVal[6])!=SQLITE_NULL ){
+      zipfileTableErr(pTab, "rawdata must be NULL"); 
+      rc = SQLITE_CONSTRAINT;
+    }
+
+    if( rc==SQLITE_OK ){
+      if( sqlite3_value_type(apVal[7])==SQLITE_NULL ){
+        /* data=NULL. A directory */
+        bIsDir = 1;
+      }else{
+        /* Value specified for "data", and possibly "method". This must be
+        ** a regular file or a symlink. */
+        const u8 *aIn = sqlite3_value_blob(apVal[7]);
+        int nIn = sqlite3_value_bytes(apVal[7]);
+        int bAuto = sqlite3_value_type(apVal[8])==SQLITE_NULL;
+
+        iMethod = sqlite3_value_int(apVal[8]);
+        sz = nIn;
+        pData = aIn;
+        nData = nIn;
+        if( iMethod!=0 && iMethod!=8 ){
+          zipfileTableErr(pTab, "unknown compression method: %d", iMethod);
+          rc = SQLITE_CONSTRAINT;
+        }else{
+          if( bAuto || iMethod ){
+            int nCmp;
+            rc = zipfileDeflate(aIn, nIn, &pFree, &nCmp, &pTab->base.zErrMsg);
+            if( rc==SQLITE_OK ){
+              if( iMethod || nCmp<nIn ){
+                iMethod = 8;
+                pData = pFree;
+                nData = nCmp;
+              }
+            }
+          }
+          iCrc32 = crc32(0, aIn, nIn);
+        }
+      }
+    }
+
+    if( rc==SQLITE_OK ){
+      rc = zipfileGetMode(apVal[3], bIsDir, &mode, &pTab->base.zErrMsg);
+    }
+
+    if( rc==SQLITE_OK ){
+      zPath = (const char*)sqlite3_value_text(apVal[2]);
+      if( zPath==0 ) zPath = "";
+      nPath = (int)strlen(zPath);
+      mTime = zipfileGetTime(apVal[4]);
+    }
+
+    if( rc==SQLITE_OK && bIsDir ){
+      /* For a directory, check that the last character in the path is a
+      ** '/'. This appears to be required for compatibility with info-zip
+      ** (the unzip command on unix). It does not create directories
+      ** otherwise.  */
+      if( zPath[nPath-1]!='/' ){
+        zFree = sqlite3_mprintf("%s/", zPath);
+        if( zFree==0 ){ rc = SQLITE_NOMEM; }
+        zPath = (const char*)zFree;
+        nPath++;
+      }
+    }
+
+    /* Check that we're not inserting a duplicate entry -OR- updating an
+    ** entry with a path, thereby making it into a duplicate. */
+    if( (pOld==0 || bUpdate) && rc==SQLITE_OK ){
+      ZipfileEntry *p;
+      for(p=pTab->pFirstEntry; p; p=p->pNext){
+        if( zipfileComparePath(p->cds.zFile, zPath, nPath)==0 ){
+          switch( sqlite3_vtab_on_conflict(pTab->db) ){
+            case SQLITE_IGNORE: {
+              goto zipfile_update_done;
+            }
+            case SQLITE_REPLACE: {
+              pOld2 = p;
+              break;
+            }
+            default: {
+              zipfileTableErr(pTab, "duplicate name: \"%s\"", zPath);
+              rc = SQLITE_CONSTRAINT;
+              break;
+            }
+          }
+          break;
+        }
+      }
+    }
+
+    if( rc==SQLITE_OK ){
+      /* Create the new CDS record. */
+      pNew = zipfileNewEntry(zPath);
+      if( pNew==0 ){
+        rc = SQLITE_NOMEM;
+      }else{
+        pNew->cds.iVersionMadeBy = ZIPFILE_NEWENTRY_MADEBY;
+        pNew->cds.iVersionExtract = ZIPFILE_NEWENTRY_REQUIRED;
+        pNew->cds.flags = ZIPFILE_NEWENTRY_FLAGS;
+        pNew->cds.iCompression = (u16)iMethod;
+        zipfileMtimeToDos(&pNew->cds, mTime);
+        pNew->cds.crc32 = iCrc32;
+        pNew->cds.szCompressed = nData;
+        pNew->cds.szUncompressed = (u32)sz;
+        pNew->cds.iExternalAttr = (mode<<16);
+        pNew->cds.iOffset = (u32)pTab->szCurrent;
+        pNew->cds.nFile = (u16)nPath;
+        pNew->mUnixTime = (u32)mTime;
+        rc = zipfileAppendEntry(pTab, pNew, pData, nData);
+        zipfileAddEntry(pTab, pOld, pNew);
+      }
+    }
+  }
+
+  if( rc==SQLITE_OK && (pOld || pOld2) ){
+    ZipfileCsr *pCsr;
+    for(pCsr=pTab->pCsrList; pCsr; pCsr=pCsr->pCsrNext){
+      if( pCsr->pCurrent && (pCsr->pCurrent==pOld || pCsr->pCurrent==pOld2) ){
+        pCsr->pCurrent = pCsr->pCurrent->pNext;
+        pCsr->bNoop = 1;
+      }
+    }
+
+    zipfileRemoveEntryFromList(pTab, pOld);
+    zipfileRemoveEntryFromList(pTab, pOld2);
+  }
+
+zipfile_update_done:
+  sqlite3_free(pFree);
+  sqlite3_free(zFree);
+  return rc;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[30/52] the-tcpdump-group___tcpdump@061e7371a944588f231cb1b66d6fb070b646e376
+SHA: 061e7371a944588f231cb1b66d6fb070b646e376
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 3: score=0.4756 | 	       const struct isakmp_gen *ext, u_int item_len,
+- line 23: score=0.9736 | 	p = (const struct ikev1_pl_id *)ext;
+- line 24: score=0.6351 | 	ND_TCHECK(*p);
+- line 26: score=0.9278 | 	if (sizeof(*p) < item_len) {
+- line 27: score=0.2923 | 		data = (const u_char *)(p + 1);
+- line 28: score=0.7592 | 		len = item_len - sizeof(*p);
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: the-tcpdump-group/tcpdump print-isakmp.c::ikev1_id_print (distance=0.0000)
+  vulnerable_before:
+static const u_char *
+ikev1_id_print(netdissect_options *ndo, u_char tpay _U_,
+	       const struct isakmp_gen *ext, u_int item_len,
+	       ...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 3: score=0.4756 | 	       const struct isakmp_gen *ext, u_int item_len,
+- line 23: score=0.9736 | 	p = (const struct ikev1_pl_id *)ext;
+- line 24: score=0.6351 | 	ND_TCHECK(*p);
+- line 26: score=0.9278 | 	if (sizeof(*p) < item_len) {
+- line 27: score=0.2923 | 		data = (const u_char *)(p + 1);
+- line 28: score=0.7592 | 		len = item_len - sizeof(*p);
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static const u_char *
+ikev1_id_print(netdissect_options *ndo, u_char tpay _U_,
+	       const struct isakmp_gen *ext, u_int item_len,
+	       const u_char *ep _U_, uint32_t phase, uint32_t doi _U_,
+	       uint32_t proto ...
+
+Extracted patch:
+case IPSECDOI_ID_IPV6_ADDR_SUBNET:
+    {
+        const u_char *mask;
+        if (len < 32)
+            ND_PRINT((ndo, " len=%d [bad: < 32]", len));
+        else {
+            mask = (const u_char *)(data + sizeof(struct in6_addr));
+            /*XXX*/
+            ND_PRINT((ndo, " len=%d %s/%x:%x:%x:%x:%x:%x:%x:%x:%x:%x:%x:%x:%x:%x:%x",
+                      len,
+                      ip6addr_string(ndo, data),
+                      mask[0], mask[1], mask[2], mask[3],
+                      mask[4], mask[5], mask[6], mask[7],
+                      mask[8], mask[9], mask[10], mask[11],
+                      mask[12], mask[13], mask[14], mask[15]));
+        }
+        len = 0;
+        break;
+    }
+
+Compile : True
+Fixed   : False
+============================================================
+[31/52] the-tcpdump-group___tcpdump@29e5470e6ab84badbc31f4532bb7554a796d9d52
+SHA: 29e5470e6ab84badbc31f4532bb7554a796d9d52
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 38: score=0.0143 | 		ND_PRINT((ndo, ", hops %d", bp->bp_hops));
+- line 33: score=0.0085 | 	if (bp->bp_htype != 1 || bp->bp_hlen != 6)
+- line 34: score=0.0077 | 		ND_PRINT((ndo, ", hlen %d", bp->bp_hlen));
+- line 52: score=0.0046 | 		ND_PRINT((ndo, "\n\t  Client-IP %s", ipaddr_string(ndo, &bp->bp_ciaddr)));
+- line 17: score=0.0031 | 		ND_TCHECK2(bp->bp_chaddr[0], 6);
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: the-tcpdump-group/tcpdump print-bootp.c::bootp_print (distance=0.0000)
+  vulnerable_before:
+void
+bootp_print(netdissect_options *ndo,
+	    register const u_char *cp, u_int length)
+{
+	register const struct bootp *bp;
+	static const u_char ...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 38: score=0.0143 | 		ND_PRINT((ndo, ", hops %d", bp->bp_hops));
+- line 33: score=0.0085 | 	if (bp->bp_htype != 1 || bp->bp_hlen != 6)
+- line 34: score=0.0077 | 		ND_PRINT((ndo, ", hlen %d", bp->bp_hlen));
+- line 52: score=0.0046 | 		ND_PRINT((ndo, "\n\t  Client-IP %s", ipaddr_string(ndo, &bp->bp_ciaddr)));
+- line 17: score=0.0031 | 		ND_TCHECK2(bp->bp_chaddr[0], 6);
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+void
+bootp_print(netdissect_options *ndo,
+	    register const u_char *cp, u_int length)
+{
+	register const struct bootp *bp;
+	static const u_char vm_cmu[4] = VM_CMU;
+	static const u_char vm_rfc1048[4] = VM_RFC1048;
+
+	bp =...
+
+Extracted patch:
+void bootp_print(netdissect_options *ndo,
+                 register const u_char *cp, u_int length)
+{
+    register const struct bootp *bp;
+    static const u_char vm_cmu[4] = VM_CMU;
+    static const u_char vm_rfc1048[4] = VM_RFC1048;
+
+    bp = (const struct bootp *)cp;
+    ND_TCHECK(bp->bp_op);
+
+    ND_PRINT((ndo, "BOOTP/DHCP, %s",
+              tok2str(bootp_op_values, "unknown (0x%02x)", bp->bp_op)));
+
+    ND_TCHECK(bp->bp_hlen);
+    if (bp->bp_htype == 1 && bp->bp_hlen == 6 && bp->bp_op == BOOTPREQUEST) {
+        ND_TCHECK2(bp->bp_chaddr[0], 6);
+        ND_PRINT((ndo, " from %s", etheraddr_string(ndo, bp->bp_chaddr)));
+    }
+
+    ND_PRINT((ndo, ", length %u", length));
+
+    if (!ndo->ndo_vflag)
+        return;
+
+    ND_TCHECK(bp->bp_secs);
+
+    /* The usual hardware address type is 1 (10Mb Ethernet) */
+    if (bp->bp_htype != 1)
+        ND_PRINT((ndo, ", htype %d", bp->bp_htype));
+
+    /* The usual length for 10Mb Ethernet address is 6 bytes */
+    if (bp->bp_htype != 1 || bp->bp_hlen != 6)
+        ND_PRINT((ndo, ", hlen %d", bp->bp_hlen));
+
+    /* Only print interesting fields */
+    if (bp->bp_hops)
+        ND_PRINT((ndo, ", hops %d", bp->bp_hops));
+    if (EXTRACT_32BITS(&bp->bp_xid))
+        ND_PRINT((ndo, ", xid 0x%x", EXTRACT_32BITS(&bp->bp_xid)));
+    if (EXTRACT_16BITS(&bp->bp_secs))
+        ND_PRINT((ndo, ", secs %d", EXTRACT_16BITS(&bp->bp_secs)));
+
+    ND_TCHECK(bp->bp_flags);
+    ND_PRINT((ndo, ", Flags [%s]",
+              bittok2str(bootp_flag_values, "none", EXTRACT_16BITS(&bp->bp_flags))));
+    if (ndo->ndo_vflag > 1)
+        ND_PRINT((ndo, " (0x%04x)", EXTRACT_16BITS(&bp->bp_flags)));
+
+    /* Client's ip address */
+    ND_TCHECK(bp->bp_ciaddr);
+    if (EXTRACT_32BITS(&bp->bp_ciaddr.s_addr))
+        ND_PRINT((ndo, "\n\t  Client-IP %s", ipaddr_string(ndo, &bp->bp_ciaddr)));
+
+    /* 'your' ip address (bootp client) */
+    ND_TCHECK(bp->bp_yiaddr);
+    if (EXTRACT_32BITS(&bp->bp_yiaddr.s_addr))
+        ND_PRINT((ndo, "\n\t  Your-IP %s", ipaddr_string(ndo, &bp->bp_yiaddr)));
+
+    /* Server's ip address */
+    ND_TCHECK(bp->bp_siaddr);
+    if (EXTRACT_32BITS(&bp->bp_siaddr.s_addr))
+        ND_PRINT((ndo, "\n\t  Server-IP %s", ipaddr_string(ndo, &bp->bp_siaddr)));
+
+    /* Gateway's ip address */
+    ND_TCHECK(bp->bp_giaddr);
+    if (EXTRACT_32BITS(&bp->bp_giaddr.s_addr))
+        ND_PRINT((ndo, "\n\t  Gateway-IP %s", ipaddr_string(ndo, &bp->bp_giaddr)));
+
+    /* Client's Ethernet address */
+    if (bp->bp_htype == 1 && bp->bp_hlen == 6) {
+        ND_TCHECK2(bp->bp_chaddr[0], 6);
+        ND_PRINT((ndo, "\n\t  Client-Ethernet-Address %s", etheraddr_string(ndo, bp->bp_chaddr)));
+    }
+
+    ND_TCHECK2(bp->bp_sname[0], 1);		/* check first char only */
+    if (*bp->bp_sname) {
+        ND_PRINT((ndo, "\n\t  sname \""));
+        if (fn_printztn(ndo, bp->bp_sname, (u_int)sizeof bp->bp_sname,
+            ndo->ndo_snapend)) {
+            ND_PRINT((ndo, "\""));
+            ND_PRINT((ndo, "%s", tstr + 1));
+            return;
+        }
+        ND_PRINT((ndo, "\""));
+    }
+    ND_TCHECK2(bp->bp_file[0], 1);		/* check first char only */
+    if (*bp->bp_file) {
+        ND_PRINT((ndo, "\n\t  file \""));
+        if (fn_printztn(ndo, bp->bp_file, (u_int)sizeof bp->bp_file,
+            ndo->ndo_snapend)) {
+            ND_PRINT((ndo, "\""));
+            ND_PRINT((ndo, "%s", tstr + 1));
+            return;
+        }
+        ND_PRINT((ndo, "\""));
+    }
+
+    /* Decode the vendor buffer */
+    ND_TCHECK(bp->bp_vend[0]);
+    if (memcmp((const char *)bp->bp_vend, vm_rfc1048,
+        sizeof(uint32_t)) == 0)
+        rfc1048_print(ndo, bp->bp_vend);
+    else if (memcmp((const char *)bp->bp_vend, vm_cmu,
+        sizeof(uint32_t)) == 0)
+        cmu_print(ndo, bp->bp_vend);
+    else {
+        uint32_t ul;
+
+        ul = EXTRACT_32BITS(&bp->bp_vend);
+        if (ul != 0)
+            ND_PRINT((ndo, "\n\t  Vendor-#0x%x", ul));
+    }
+
+    return;
+trunc:
+    ND_PRINT((ndo, "%s", tstr));
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[32/52] the-tcpdump-group___tcpdump@2d669862df7cd17f539129049f6fb70d17174125
+SHA: 2d669862df7cd17f539129049f6fb70d17174125
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 10: score=0.9994 | 	ND_TCHECK(dp->ip6f_offlg);
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: the-tcpdump-group/tcpdump print-frag6.c::frag6_print (distance=0.0000)
+  vulnerable_before:
+int
+frag6_print(netdissect_options *ndo, register const u_char *bp, register const u_char *bp2)
+{
+	register const struct ip6_frag *dp;
+	register ...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 10: score=0.9994 | 	ND_TCHECK(dp->ip6f_offlg);
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+int
+frag6_print(netdissect_options *ndo, register const u_char *bp, register const u_char *bp2)
+{
+	register const struct ip6_frag *dp;
+	register const struct ip6_hdr *ip6;
+
+	dp = (const struct ip6_frag *)bp;
+	ip6 = (cons...
+
+Extracted patch:
+int
+frag6_print(netdissect_options *ndo, register const u_char *bp, register const u_char *bp2)
+{
+    register const struct ip6_frag *dp;
+    register const struct ip6_hdr *ip6;
+
+    if (!bp || !bp2) {
+        return -1; // or handle the error as needed
+    }
+
+    dp = (const struct ip6_frag *)bp;
+    ip6 = (const struct ip6_hdr *)bp2;
+
+    ND_TCHECK(*dp);
+
+    // rest of the function remains the same
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[33/52] the-tcpdump-group___tcpdump@571a6f33f47e7a2394fa08f925e534135c29cf1e
+SHA: 571a6f33f47e7a2394fa08f925e534135c29cf1e
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 8: score=0.9996 |     for (i = 1; i <= SYSTEM_ID_LEN; i++) {
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: the-tcpdump-group/tcpdump print-isoclns.c::isis_print_id (distance=0.0000)
+  vulnerable_before:
+static char *
+isis_print_id(const uint8_t *cp, int id_len)
+{
+    int i;
+    static char id[sizeof("xxxx.xxxx.xxxx.yy-zz")];
+    char *pos = i...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 8: score=0.9996 |     for (i = 1; i <= SYSTEM_ID_LEN; i++) {
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static char *
+isis_print_id(const uint8_t *cp, int id_len)
+{
+    int i;
+    static char id[sizeof("xxxx.xxxx.xxxx.yy-zz")];
+    char *pos = id;
+
+    for (i = 1; i <= SYSTEM_ID_LEN; i++) {
+        snprintf(pos, sizeof(id)...
+
+Extracted patch:
+for (i = 1; i <= SYSTEM_ID_LEN && i <= id_len; i++) {
+
+Compile : True
+Fixed   : True
+============================================================
+[34/52] the-tcpdump-group___tcpdump@5d0d76e88ee2d3236d7e032589d6f1d4ec5f7b1e
+SHA: 5d0d76e88ee2d3236d7e032589d6f1d4ec5f7b1e
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 62: score=0.9467 |                 ND_TCHECK2(*tptr, 4);
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: the-tcpdump-group/tcpdump print-isoclns.c::isis_print_is_reach_subtlv (distance=0.0000)
+  vulnerable_before:
+static int
+isis_print_is_reach_subtlv(netdissect_options *ndo,
+                           const uint8_t *tptr, u_int subt, u_int...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 62: score=0.9467 |                 ND_TCHECK2(*tptr, 4);
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+isis_print_is_reach_subtlv(netdissect_options *ndo,
+                           const uint8_t *tptr, u_int subt, u_int subl,
+                           const char *ident)
+{
+        u_int te_class,priority_level...
+
+Extracted patch:
+case GMPLS_PSC1:
+case GMPLS_PSC2:
+case GMPLS_PSC3:
+case GMPLS_PSC4:
+    ND_TCHECK2(*tptr, 6);
+    bw.i = EXTRACT_32BITS(tptr);
+    ND_PRINT((ndo, "%s  Min LSP Bandwidth: %.3f Mbps", ident, bw.f * 8 / 1000000));
+    ND_PRINT((ndo, "%s  Interface MTU: %u", ident, EXTRACT_16BITS(tptr + 4)));
+    break;
+case GMPLS_TSC:
+    ND_TCHECK2(*tptr, 8);
+    bw.i = EXTRACT_32BITS(tptr);
+    ND_PRINT((ndo, "%s  Min LSP Bandwidth: %.3f Mbps", ident, bw.f * 8 / 1000000));
+    ND_PRINT((ndo, "%s  Indication %s", ident,
+           tok2str(gmpls_switch_cap_tsc_indication_values, "Unknown (%u)", *(tptr + 4))));
+    break;
+default:
+    /* there is some optional stuff left to decode but this is as of yet
+       not specified so just lets hexdump what is left */
+    if(subl>0){
+      if (!print_unknown_data(ndo, tptr, "\n\t\t    ", subl))
+        return(0);
+    }
+
+Compile : True
+Fixed   : False
+============================================================
+[35/52] the-tcpdump-group___tcpdump@6f5ba2b651cd9d4b7fa8ee5c4f94460645877c45
+SHA: 6f5ba2b651cd9d4b7fa8ee5c4f94460645877c45
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 11: score=0.5050 |     c = *s;
+- line 23: score=0.2529 |     return(-1);	/* name goes past the end of the buffer */
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: the-tcpdump-group/tcpdump smbutil.c::name_len (distance=0.0000)
+  vulnerable_before:
+static int
+name_len(netdissect_options *ndo,
+         const unsigned char *s, const unsigned char *maxbuf)
+{
+    const unsigned char *s0 = s;
+    unsign...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 11: score=0.5050 |     c = *s;
+- line 23: score=0.2529 |     return(-1);	/* name goes past the end of the buffer */
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+name_len(netdissect_options *ndo,
+         const unsigned char *s, const unsigned char *maxbuf)
+{
+    const unsigned char *s0 = s;
+    unsigned char c;
+
+    if (s >= maxbuf)
+	return(-1);	/* name goes past the ...
+
+Extracted patch:
+static int
+name_len(netdissect_options *ndo,
+         const unsigned char *s, const unsigned char *maxbuf)
+{
+    const unsigned char *s0 = s;
+    unsigned char c;
+
+    if (s >= maxbuf)
+	return(-1);	/* name goes past the end of the buffer */
+    ND_TCHECK2(*s, 1);
+    c = *s;
+    if ((c & 0xC0) == 0xC0)
+	return(2);
+    while (*s && s < maxbuf) {
+	if (s >= maxbuf)
+	    return(-1);	/* name goes past the end of the buffer */
+	ND_TCHECK2(*s, 1);
+	s += (*s) + 1;
+	ND_TCHECK2(*s, 1);
+    }
+    return(PTR_DIFF(s, s0) + 1);
+
+trunc:
+    return(-1);	/* name goes past the end of the buffer */
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[36/52] the-tcpdump-group___tcpdump@7335163a6ef82d46ff18f3e6099a157747241629
+SHA: 7335163a6ef82d46ff18f3e6099a157747241629
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 1: score=0.0001 | static void
+- line 2: score=0.0001 | handle_mlppp(netdissect_options *ndo,
+- line 3: score=0.0001 |              const u_char *p, int length)
+- line 4: score=0.0001 | {
+- line 5: score=0.0001 |     if (!ndo->ndo_eflag)
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: the-tcpdump-group/tcpdump print-ppp.c::handle_mlppp (distance=0.0000)
+  vulnerable_before:
+static void
+handle_mlppp(netdissect_options *ndo,
+             const u_char *p, int length)
+{
+    if (!ndo->ndo_eflag)
+        ND_PRINT((ndo, "MLP...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 1: score=0.0001 | static void
+- line 2: score=0.0001 | handle_mlppp(netdissect_options *ndo,
+- line 3: score=0.0001 |              const u_char *p, int length)
+- line 4: score=0.0001 | {
+- line 5: score=0.0001 |     if (!ndo->ndo_eflag)
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static void
+handle_mlppp(netdissect_options *ndo,
+             const u_char *p, int length)
+{
+    if (!ndo->ndo_eflag)
+        ND_PRINT((ndo, "MLPPP, "));
+
+    ND_PRINT((ndo, "seq 0x%03x, Flags [%s], length %u",
+        ...
+
+Extracted patch:
+static void
+handle_mlppp(netdissect_options *ndo,
+             const u_char *p, int length)
+{
+    if (!ndo->ndo_eflag)
+        ND_PRINT((ndo, "MLPPP, "));
+
+    if (length < 2) {
+        ND_PRINT((ndo, "[|mlppp]"));
+        return;
+    }
+    if (!ND_TTEST_16BITS(p)) {
+        ND_PRINT((ndo, "[|mlppp]"));
+        return;
+    }
+
+    ND_PRINT((ndo, "seq 0x%03x, Flags [%s], length %u",
+           (EXTRACT_16BITS(p))&0x0fff, /* only support 12-Bit sequence space for now */
+           bittok2str(ppp_ml_flag_values, "none", *p & 0xc0),
+           length));
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[37/52] the-tcpdump-group___tcpdump@7d3aba9f06899d0128ef46e8a2fa143c6fad8f62
+SHA: 7d3aba9f06899d0128ef46e8a2fa143c6fad8f62
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 16: score=0.0247 | 			else
+- line 47: score=0.0232 | 				goto trunc;
+- line 54: score=0.0179 | 				goto trunc;
+- line 63: score=0.0109 | 				goto trunc;
+- line 62: score=0.0089 | 				ND_PRINT((ndo, "(auth: trunc)"));
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: the-tcpdump-group/tcpdump print-mobility.c::mobility_opt_print (distance=0.0000)
+  vulnerable_before:
+static int
+mobility_opt_print(netdissect_options *ndo,
+                   const u_char *bp, const unsigned len)
+{
+	unsigned i, optlen;
+...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 16: score=0.0247 | 			else
+- line 47: score=0.0232 | 				goto trunc;
+- line 54: score=0.0179 | 				goto trunc;
+- line 63: score=0.0109 | 				goto trunc;
+- line 62: score=0.0089 | 				ND_PRINT((ndo, "(auth: trunc)"));
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+mobility_opt_print(netdissect_options *ndo,
+                   const u_char *bp, const unsigned len)
+{
+	unsigned i, optlen;
+
+	for (i = 0; i < len; i += optlen) {
+		ND_TCHECK(bp[i]);
+		if (bp[i] == IP6MOPT_PAD1...
+
+Extracted patch:
+case IP6MOPT_NONCEID:
+    if (len - i < IP6MOPT_NONCEID_MINLEN) {
+        ND_PRINT((ndo, "(ni: trunc)"));
+        goto trunc;
+    }
+    ND_TCHECK_16BITS(&bp[i+2]);
+    ND_TCHECK_16BITS(&bp[i+4]);
+    ND_PRINT((ndo, "(ni: ho=0x%04x co=0x%04x)",
+        EXTRACT_16BITS(&bp[i+2]),
+        EXTRACT_16BITS(&bp[i+4])));
+    break;
+
+Compile : True
+Fixed   : False
+============================================================
+[38/52] the-tcpdump-group___tcpdump@8512734883227c11568bb35da1d48b9f8466f43f
+SHA: 8512734883227c11568bb35da1d48b9f8466f43f
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 11: score=0.8604 | 	if (caplen < 3) {
+- line 12: score=0.6627 | 		ND_PRINT((ndo, "[|802.15.4]"));
+- line 14: score=0.3023 | 	}
+- line 50: score=0.3801 | 			ND_PRINT((ndo, "[|802.15.4]"));
+- line 76: score=0.7739 | 		if (caplen < 8) {
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: torvalds/linux net/ipv6/ndisc.c::ndisc_router_discovery (distance=0.6063)
+  vulnerable_before:
+static void ndisc_router_discovery(struct sk_buff *skb)
+{
+	struct ra_msg *ra_msg = (struct ra_msg *)skb_transport_header(skb);
+	struct neighbo...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 11: score=0.8604 | 	if (caplen < 3) {
+- line 12: score=0.6627 | 		ND_PRINT((ndo, "[|802.15.4]"));
+- line 14: score=0.3023 | 	}
+- line 50: score=0.3801 | 			ND_PRINT((ndo, "[|802.15.4]"));
+- line 76: score=0.7739 | 		if (caplen < 8) {
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+u_int
+ieee802_15_4_if_print(netdissect_options *ndo,
+                      const struct pcap_pkthdr *h, const u_char *p)
+{
+	u_int caplen = h->caplen;
+	u_int hdrlen;
+	uint16_t fc;
+	uint8_t seq;
+	uint16_t panid = 0;
+
+	if (...
+
+Extracted patch:
+I'm a C/C++ code program repair expert. I can help you with fault localization and repair.
+
+The given code is related to IPv6 router advertisement processing in Linux kernel. It seems that the code is responsible for handling Router Advertisement (RA) messages, which are used by routers to advertise their presence and provide routing information to hosts on a network.
+
+To localize the fault, I would suggest the following steps:
+
+1. Review the code: Study the given code carefully to understand its functionality and identify any potential issues.
+2. Analyze error messages: If there are any error messages or logs related to this code, analyze them to see if they provide any clues about the fault.
+3. Check for common errors: Look out for common programming errors such as null pointer dereferences, division by zero, etc.
+4. Use debugging tools: Use debugging tools like gdb or valgrind to step through the code and identify where it is crashing or producing incorrect results.
+
+Based on my analysis of the given code, I would suggest that the fault might be related to the handling of Router Advertisement (RA) messages. The code seems to be processing RA messages and updating various data structures accordingly. However, there are some potential issues with the code that could cause it to crash or produce incorrect results.
+
+Some possible faults that I would look out for include:
+
+* Null pointer dereferences: The code uses pointers to various data structures such as `nd_parms` and `rt`. If these pointers become null due to a bug in the code, it could lead to crashes or incorrect behavior.
+* Division by zero: The code uses division operations to calculate various values. If the denominator becomes zero, it could cause the program to crash or produce incorrect results.
+* Incorrect data processing: The code processes RA messages and updates various data structures accordingly. If there are any bugs in this processing logic, it could lead to incorrect behavior or crashes.
+
+To repair the fault, I would suggest the following steps:
+
+1. Review the code: Study the given code carefully to understand its functionality and identify any potential issues.
+2. Analyze error messages: If there are any error messages or logs related to this code, analyze them to see if they provide any clues about the fault.
+3. Use debugging tools: Use debugging tools like gdb or valgrind to step through the code and identify where it is crashing or producing incorrect results.
+4. Fix bugs: Once you have identified the bug, fix it by correcting the relevant code.
+
+Some possible fixes that I would suggest include:
+
+* Checking for null pointers before dereferencing them
+* Adding checks to prevent division by zero
+* Correcting any logic errors in the data processing code
+
+I hope this helps! Let me know if you have any further questions.
+
+Compile : False
+Fixed   : False
+============================================================
+[39/52] the-tcpdump-group___tcpdump@88b2dac837e81cf56dce05e6e7b5989332c0092d
+SHA: 88b2dac837e81cf56dce05e6e7b5989332c0092d
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 39: score=0.1068 | 			while ((const u_char *)ap < dataend) {
+- line 41: score=0.0391 | 				ND_PRINT((ndo, "\n\t    %s", ipaddr_string(ndo, ap)));
+- line 10: score=0.0285 | 	register int i;
+- line 40: score=0.0137 | 				ND_TCHECK(*ap);
+- line 42: score=0.0041 | 				++ap;
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: the-tcpdump-group/tcpdump print-ospf6.c::ospf6_decode_v3 (distance=0.0000)
+  vulnerable_before:
+static int
+ospf6_decode_v3(netdissect_options *ndo,
+                register const struct ospf6hdr *op,
+                register const u_char...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 39: score=0.1068 | 			while ((const u_char *)ap < dataend) {
+- line 41: score=0.0391 | 				ND_PRINT((ndo, "\n\t    %s", ipaddr_string(ndo, ap)));
+- line 10: score=0.0285 | 	register int i;
+- line 40: score=0.0137 | 				ND_TCHECK(*ap);
+- line 42: score=0.0041 | 				++ap;
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+ospf6_decode_v3(netdissect_options *ndo,
+                register const struct ospf6hdr *op,
+                register const u_char *dataend)
+{
+	register const rtrid_t *ap;
+	register const struct lsr6 *lsrp;
+	r...
+
+Extracted patch:
+if (ndo->ndo_vflag > 1) {
+    ND_PRINT((ndo, "\n\tNeighbor List:"));
+    ap = hellop->hello_neighbor;
+    while ((const u_char *)ap < dataend) {
+        if (*ap == NULL) { // Check for null pointer
+            break; // Exit the loop if we hit a null pointer
+        }
+        ND_PRINT((ndo, "\n\t    %s", ipaddr_string(ndo, ap)));
+        ++ap;
+    }
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[40/52] the-tcpdump-group___tcpdump@8934a7d6307267d301182f19ed162563717e29e3
+SHA: 8934a7d6307267d301182f19ed162563717e29e3
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 14: score=0.7190 | 	} while (0)
+- line 94: score=0.2312 | 			FETCH(x, sp, length);
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: the-tcpdump-group/tcpdump print-telnet.c::telnet_parse (distance=0.0000)
+  vulnerable_before:
+static int
+telnet_parse(netdissect_options *ndo, const u_char *sp, u_int length, int print)
+{
+	int i, x;
+	u_int c;
+	const u_char *osp, *p;
+#def...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 14: score=0.7190 | 	} while (0)
+- line 94: score=0.2312 | 			FETCH(x, sp, length);
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+telnet_parse(netdissect_options *ndo, const u_char *sp, u_int length, int print)
+{
+	int i, x;
+	u_int c;
+	const u_char *osp, *p;
+#define FETCH(c, sp, length) \
+	do { \
+		if (length < 1) \
+			goto pktend; \
+		ND...
+
+Extracted patch:
+// vulnerable hunk
+	if (p && *p != IAC)
+
+Compile : True
+Fixed   : False
+============================================================
+[41/52] the-tcpdump-group___tcpdump@979dcefd7b259e9e233f77fe1c5312793bfd948f
+SHA: 979dcefd7b259e9e233f77fe1c5312793bfd948f
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 16: score=0.9420 |         if (!ND_TTEST2(*tptr, 1)) /* fetch status byte */
+- line 28: score=0.9820 |         if (!ND_TTEST2(*tptr, 1)) /* fetch status & prefix_len byte */
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: the-tcpdump-group/tcpdump print-isoclns.c::isis_print_extd_ip_reach (distance=0.0000)
+  vulnerable_before:
+static int
+isis_print_extd_ip_reach(netdissect_options *ndo,
+                         const uint8_t *tptr, const char *ident, uint...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 16: score=0.9420 |         if (!ND_TTEST2(*tptr, 1)) /* fetch status byte */
+- line 28: score=0.9820 |         if (!ND_TTEST2(*tptr, 1)) /* fetch status & prefix_len byte */
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+isis_print_extd_ip_reach(netdissect_options *ndo,
+                         const uint8_t *tptr, const char *ident, uint16_t afi)
+{
+    char ident_buffer[20];
+    uint8_t prefix[sizeof(struct in6_addr)]; /* sha...
+
+Extracted patch:
+if (!ND_TTEST2(*tptr, 2)) /* fetch status & prefix_len byte */
+
+Compile : True
+Fixed   : True
+============================================================
+[42/52] the-tcpdump-group___tcpdump@a77ff09c46560bc895dea11dc9fe643486b056ac
+SHA: a77ff09c46560bc895dea11dc9fe643486b056ac
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 51: score=0.9960 |         if (tlen < oid_len) {
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: the-tcpdump-group/tcpdump print-lldp.c::lldp_mgmt_addr_tlv_print (distance=0.0000)
+  vulnerable_before:
+static int
+lldp_mgmt_addr_tlv_print(netdissect_options *ndo,
+                         const u_char *pptr, u_int len)
+{
+    uint8_t mg...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 51: score=0.9960 |         if (tlen < oid_len) {
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+lldp_mgmt_addr_tlv_print(netdissect_options *ndo,
+                         const u_char *pptr, u_int len)
+{
+    uint8_t mgmt_addr_len, intf_num_subtype, oid_len;
+    const u_char *tptr;
+    u_int tlen;
+    cha...
+
+Extracted patch:
+if (tlen < 1U + oid_len) {
+    return 0;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[43/52] the-tcpdump-group___tcpdump@a7e5f58f402e6919ec444a57946bade7dfd6b184
+SHA: a7e5f58f402e6919ec444a57946bade7dfd6b184
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 11: score=0.8706 | 	if (caplen < 3) {
+- line 12: score=0.6977 | 		ND_PRINT((ndo, "[|802.15.4]"));
+- line 14: score=0.3435 | 	}
+- line 50: score=0.3955 | 			ND_PRINT((ndo, "[|802.15.4]"));
+- line 76: score=0.7607 | 		if (caplen < 8) {
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: torvalds/linux net/ipv6/ndisc.c::ndisc_router_discovery (distance=0.5899)
+  vulnerable_before:
+static void ndisc_router_discovery(struct sk_buff *skb)
+{
+	struct ra_msg *ra_msg = (struct ra_msg *)skb_transport_header(skb);
+	struct neighbo...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 11: score=0.8706 | 	if (caplen < 3) {
+- line 12: score=0.6977 | 		ND_PRINT((ndo, "[|802.15.4]"));
+- line 14: score=0.3435 | 	}
+- line 50: score=0.3955 | 			ND_PRINT((ndo, "[|802.15.4]"));
+- line 76: score=0.7607 | 		if (caplen < 8) {
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+u_int
+ieee802_15_4_if_print(netdissect_options *ndo,
+                      const struct pcap_pkthdr *h, const u_char *p)
+{
+	u_int caplen = h->caplen;
+	u_int hdrlen;
+	uint16_t fc;
+	uint8_t seq;
+	uint16_t panid = 0;
+
+	if (...
+
+Extracted patch:
+I'm a C/C++ code program repair expert. I can help you with fault localization and repair.
+
+The given code is related to IPv6 router advertisement processing in Linux kernel. It seems that the code is responsible for handling Router Advertisement (RA) messages, which are used by routers to advertise their presence and provide routing information to hosts on a network.
+
+To localize the fault, I would suggest the following steps:
+
+1. Review the code: Study the given code carefully to understand its functionality and identify any potential issues.
+2. Analyze error messages: If there are any error messages or logs related to this code, analyze them to see if they provide any clues about the fault.
+3. Check for common errors: Look out for common programming errors such as null pointer dereferences, division by zero, etc.
+4. Use debugging tools: Use debugging tools like gdb or valgrind to step through the code and identify where it is crashing or producing incorrect results.
+
+Based on my analysis of the given code, I would suggest that the fault might be related to the handling of Router Advertisement (RA) messages. The code seems to be processing RA messages and updating various data structures accordingly. However, there are some potential issues with the code that could cause it to crash or produce incorrect results.
+
+Some possible faults that I would look out for include:
+
+* Null pointer dereferences: The code uses pointers to various data structures such as `nd_parms` and `rt`. If these pointers become null due to a bug in the code, it could lead to crashes or incorrect behavior.
+* Division by zero: The code uses division operations to calculate various values. If the denominator becomes zero, it could cause the program to crash or produce incorrect results.
+* Incorrect data processing: The code processes RA messages and updates various data structures accordingly. If there are any bugs in this processing logic, it could lead to incorrect behavior or crashes.
+
+To repair the fault, I would suggest the following steps:
+
+1. Review the code: Study the given code carefully to understand its functionality and identify any potential issues.
+2. Analyze error messages: If there are any error messages or logs related to this code, analyze them to see if they provide any clues about the fault.
+3. Use debugging tools: Use debugging tools like gdb or valgrind to step through the code and identify where it is crashing or producing incorrect results.
+4. Fix bugs: Once you have identified the bug, fix it by correcting the relevant code.
+
+Some possible fixes that I would suggest include:
+
+* Checking for null pointers before dereferencing them
+* Adding checks to prevent division by zero
+* Correcting any logic errors in the data processing code
+
+I hope this helps! Let me know if you have any further questions.
+
+Compile : False
+Fixed   : False
+============================================================
+[44/52] the-tcpdump-group___tcpdump@aa0858100096a3490edf93034a80e66a4d61aad5
+SHA: aa0858100096a3490edf93034a80e66a4d61aad5
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 25: score=0.5897 | 			ND_TCHECK2(bp[0], 4);
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: the-tcpdump-group/tcpdump print-rx.c::ubik_print (distance=0.0000)
+  vulnerable_before:
+static void
+ubik_print(netdissect_options *ndo,
+           register const u_char *bp)
+{
+	int ubik_op;
+	int32_t temp;
+
+	/*
+	 * Print out the afs call ...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 25: score=0.5897 | 			ND_TCHECK2(bp[0], 4);
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static void
+ubik_print(netdissect_options *ndo,
+           register const u_char *bp)
+{
+	int ubik_op;
+	int32_t temp;
+
+	/*
+	 * Print out the afs call we're invoking.  The table used here was
+	 * gleaned from ubik/ubik_int...
+
+Extracted patch:
+case 20002:		/* Lock */
+    ND_PRINT((ndo, " tid"));
+    UBIK_VERSIONOUT();
+    ND_PRINT((ndo, " file"));
+    INTOUT();
+    ND_PRINT((ndo, " pos"));
+    INTOUT();
+    ND_PRINT((ndo, " length"));
+    INTOUT();
+    if (bp + sizeof(int32_t) <= end_of_packet) {
+        temp = EXTRACT_32BITS(bp);
+        bp += sizeof(int32_t);
+        tok2str(ubik_lock_types, "type %d", temp);
+    } else {
+        // Handle the case where there are not enough bytes left
+        ND_PRINT((ndo, " truncated"));
+    }
+    break;
+
+Compile : True
+Fixed   : False
+============================================================
+[45/52] the-tcpdump-group___tcpdump@b8e559afaeb8fe0604a1f8e3ad4dc1445de07a00
+SHA: b8e559afaeb8fe0604a1f8e3ad4dc1445de07a00
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 16: score=0.0255 | 			else
+- line 46: score=0.0230 | 				goto trunc;
+- line 53: score=0.0192 | 				goto trunc;
+- line 62: score=0.0123 | 				goto trunc;
+- line 61: score=0.0093 | 				ND_PRINT((ndo, "(auth: trunc)"));
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: the-tcpdump-group/tcpdump print-mobility.c::mobility_opt_print (distance=0.0000)
+  vulnerable_before:
+static int
+mobility_opt_print(netdissect_options *ndo,
+                   const u_char *bp, const unsigned len)
+{
+	unsigned i, optlen;
+...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 16: score=0.0255 | 			else
+- line 46: score=0.0230 | 				goto trunc;
+- line 53: score=0.0192 | 				goto trunc;
+- line 62: score=0.0123 | 				goto trunc;
+- line 61: score=0.0093 | 				ND_PRINT((ndo, "(auth: trunc)"));
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+mobility_opt_print(netdissect_options *ndo,
+                   const u_char *bp, const unsigned len)
+{
+	unsigned i, optlen;
+
+	for (i = 0; i < len; i += optlen) {
+		ND_TCHECK(bp[i]);
+		if (bp[i] == IP6MOPT_PAD1...
+
+Extracted patch:
+ND_PRINT((ndo, "(refresh: %u)", EXTRACT_16BITS(&bp[i+2]) << 2));
+
+Compile : True
+Fixed   : False
+============================================================
+[46/52] the-tcpdump-group___tcpdump@ca336198e8bebccc18502de27672fdbd6eb34856
+SHA: ca336198e8bebccc18502de27672fdbd6eb34856
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 2: score=0.7840 | pktap_if_print(netdissect_options *ndo,
+- line 11: score=0.2308 | 	if (caplen < sizeof(pktap_header_t) || length < sizeof(pktap_header_t)) {
+- line 29: score=0.9309 | 	if (caplen < hdrlen || length < hdrlen) {
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: the-tcpdump-group/tcpdump print-pktap.c::pktap_if_print (distance=0.0000)
+  vulnerable_before:
+u_int
+pktap_if_print(netdissect_options *ndo,
+               const struct pcap_pkthdr *h, const u_char *p)
+{
+	uint32_t dlt, hdrlen, rectype;
+	...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 2: score=0.7840 | pktap_if_print(netdissect_options *ndo,
+- line 11: score=0.2308 | 	if (caplen < sizeof(pktap_header_t) || length < sizeof(pktap_header_t)) {
+- line 29: score=0.9309 | 	if (caplen < hdrlen || length < hdrlen) {
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+u_int
+pktap_if_print(netdissect_options *ndo,
+               const struct pcap_pkthdr *h, const u_char *p)
+{
+	uint32_t dlt, hdrlen, rectype;
+	u_int caplen = h->caplen;
+	u_int length = h->len;
+	if_printer printer;
+	const ...
+
+Extracted patch:
+u_int
+pktap_if_print(netdissect_options *ndo,
+               const struct pcap_pkthdr *h, const u_char *p)
+{
+    uint32_t dlt, hdrlen, rectype;
+    u_int caplen = h->caplen;
+    u_int length = h->len;
+    if_printer printer;
+    const pktap_header_t *hdr;
+
+    if (caplen < sizeof(pktap_header_t) || length < sizeof(pktap_header_t)) {
+        ND_PRINT((ndo, "[|pktap]"));
+        return (0);
+    }
+    hdr = (const pktap_header_t *)p;
+    dlt = EXTRACT_LE_32BITS(&hdr->pkt_dlt);
+    hdrlen = EXTRACT_LE_32BITS(&hdr->pkt_len);
+    if (hdrlen < sizeof(pktap_header_t)) {
+        /*
+         * Claimed header length < structure length.
+         * XXX - does this just mean some fields aren't
+         * being supplied, or is it truly an error (i.e.,
+         * is the length supplied so that the header can
+         * be expanded in the future)?
+         */
+        ND_PRINT((ndo, "[|pktap]"));
+        return (0);
+    }
+    if (caplen < hdrlen || length < hdrlen) {
+        ND_PRINT((ndo, "[|pktap]"));
+        return (hdrlen);
+    }
+
+    if (ndo->ndo_eflag)
+        pktap_header_print(ndo, p, length);
+
+    length -= hdrlen;
+    caplen -= hdrlen;
+    p += hdrlen;
+
+    rectype = EXTRACT_LE_32BITS(&hdr->pkt_rectype);
+    switch (rectype) {
+
+    case PKT_REC_NONE:
+        ND_PRINT((ndo, "no data"));
+        break;
+
+    case PKT_REC_PACKET:
+        if ((printer = lookup_printer(dlt)) != NULL) {
+            struct pcap_pkthdr nhdr;
+            memcpy(&nhdr, h, sizeof(nhdr));
+            nhdr.caplen = caplen;
+            nhdr.len = length;
+            hdrlen += printer(ndo, &nhdr, p);
+        } else {
+            if (!ndo->ndo_eflag)
+                pktap_header_print(ndo, (const u_char *)hdr,
+                        length + hdrlen);
+
+            if (!ndo->ndo_suppress_default_print)
+                ND_DEFAULTPRINT(p, caplen);
+        }
+        break;
+    }
+
+    return (hdrlen);
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[47/52] the-tcpdump-group___tcpdump@e6511cc1a950fe1566b2236329d6b4bd0826cc7a
+SHA: e6511cc1a950fe1566b2236329d6b4bd0826cc7a
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 3: score=0.0344 |                         const u_char *tptr, u_int tlv_len)
+- line 4: score=0.0002 | {
+- line 5: score=0.0002 |     int subtype, hexdump = FALSE;
+- line 9: score=0.0002 |     }
+- line 23: score=0.0002 |                *(tptr + 4)));
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: the-tcpdump-group/tcpdump print-lldp.c::lldp_private_8023_print (distance=0.0000)
+  vulnerable_before:
+static int
+lldp_private_8023_print(netdissect_options *ndo,
+                        const u_char *tptr, u_int tlv_len)
+{
+    int subty...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 3: score=0.0344 |                         const u_char *tptr, u_int tlv_len)
+- line 4: score=0.0002 | {
+- line 5: score=0.0002 |     int subtype, hexdump = FALSE;
+- line 9: score=0.0002 |     }
+- line 23: score=0.0002 |                *(tptr + 4)));
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+lldp_private_8023_print(netdissect_options *ndo,
+                        const u_char *tptr, u_int tlv_len)
+{
+    int subtype, hexdump = FALSE;
+
+    if (tlv_len < 4) {
+        return hexdump;
+    }
+    subtype...
+
+Extracted patch:
+case LLDP_PRIVATE_8023_SUBTYPE_MTU:
+    if (tlv_len < 6) {
+        return hexdump;
+    }
+    ND_PRINT((ndo, "\n\t    MTU size %u", EXTRACT_16BITS(tptr + 4)));
+    break;
+
+Compile : True
+Fixed   : False
+============================================================
+[48/52] the-tcpdump-group___tcpdump@f76e7feb41a4327d2b0978449bbdafe98d4a3771
+SHA: f76e7feb41a4327d2b0978449bbdafe98d4a3771
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 6: score=0.8575 | 
+- line 7: score=0.3295 | 	if(length == 1 && bp[0]==0xff) {
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: the-tcpdump-group/tcpdump print-isakmp.c::isakmp_rfc3948_print (distance=0.0000)
+  vulnerable_before:
+void
+isakmp_rfc3948_print(netdissect_options *ndo,
+		     const u_char *bp, u_int length,
+		     const u_char *bp2)
+{
+
+	if(length == 1 ...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 6: score=0.8575 | 
+- line 7: score=0.3295 | 	if(length == 1 && bp[0]==0xff) {
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+void
+isakmp_rfc3948_print(netdissect_options *ndo,
+		     const u_char *bp, u_int length,
+		     const u_char *bp2)
+{
+
+	if(length == 1 && bp[0]==0xff) {
+		ND_PRINT((ndo, "isakmp-nat-keep-alive"));
+		return;
+	}
+
+	if(lengt...
+
+Extracted patch:
+if(length >= 1 && bp[0] == 0xff) {
+    ND_PRINT((ndo, "isakmp-nat-keep-alive"));
+    return;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[49/52] uriparser___uriparser@864f5d4c127def386dd5cc926ad96934b297f04e
+SHA: 864f5d4c127def386dd5cc926ad96934b297f04e
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 15: score=0.6531 | 			
+- line 37: score=0.5332 | 			if ((write - dest) + ampersandLen + keyRequiredChars > maxChars) {
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: php/php-src win32/sendmail.c::TSendMail (distance=0.3693)
+  vulnerable_before:
+PHPAPI int TSendMail(char *host, int *error, char **error_message,
+			  char *headers, char *Subject, char *mailTo, char *data,
+			  char *mailCc, char *mailB...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- Lines at or above threshold:
+- line 15: score=0.6531 | 			
+- line 37: score=0.5332 | 			if ((write - dest) + ampersandLen + keyRequiredChars > maxChars) {
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+int URI_FUNC(ComposeQueryEngine)(URI_CHAR * dest,
+		const URI_TYPE(QueryList) * queryList,
+		int maxChars, int * charsWritten, int * charsRequired,
+		UriBool spaceToPlus, UriBool normalizeBreaks) {
+	UriBool firstItem = U...
+
+Extracted patch:
+int URI_FUNC(ComposeQueryEngine)(URI_CHAR * dest,
+		const URI_TYPE(QueryList) * queryList,
+		int maxChars, int * charsWritten, int * charsRequired,
+		UriBool spaceToPlus, UriBool normalizeBreaks) {
+	UriBool firstItem = URI_TRUE;
+	int ampersandLen = 0;  /* increased to 1 from second item on */
+	URI_CHAR * write = dest;
+
+	/* Subtract terminator */
+	if (dest == NULL) {
+		*charsRequired = 0;
+	} else {
+		maxChars--;
+	}
+			
+	while (queryList != NULL) {
+		const URI_CHAR * const key = queryList->key;
+		const URI_CHAR * const value = queryList->value;
+		const int worstCase = (normalizeBreaks == URI_TRUE ? 6 : 3);
+		const int keyLen = (key == NULL) ? 0 : (int)URI_STRLEN(key);
+		const int keyRequiredChars = worstCase * keyLen;
+		const int valueLen = (value == NULL) ? 0 : (int)URI_STRLEN(value);
+		const int valueRequiredChars = worstCase * valueLen;
+
+		if (dest == NULL) {
+			if (firstItem == URI_TRUE) {
+				ampersandLen = 1;
+				firstItem = URI_FALSE;
+			}
+
+			(*charsRequired) += ampersandLen + keyRequiredChars + ((value == NULL)
+						? 0
+						: 1 + valueRequiredChars);
+		} else {
+			if (write - dest > maxChars) {
+				return URI_ERROR_OUTPUT_TOO_LARGE;
+			}
+
+			/* Copy key */
+			if (firstItem == URI_TRUE) {
+				firstItem = URI_FALSE;
+			} else {
+				write[0] = _UT('&');
+				write++;
+			}
+			afterKey = URI_FUNC(EscapeEx)(key, key + keyLen,
+					write, spaceToPlus, normalizeBreaks);
+			write += (afterKey - write);
+
+			if (value != NULL) {
+				/* Copy value */
+				write[0] = _UT('=');
+				write++;
+				afterValue = URI_FUNC(EscapeEx)(value, value + valueLen,
+						write, spaceToPlus, normalizeBreaks);
+				write += (afterValue - write);
+			}
+		}
+
+		queryList = queryList->next;
+	}
+
+	if (dest != NULL) {
+		write[0] = _UT('');
+		write++;
+	}
+
+	return 0;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[50/52] wez___atomicparsley@d72ccf06c98259d7261e0f3ac4fd8717778782c1
+SHA: d72ccf06c98259d7261e0f3ac4fd8717778782c1
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 50: score=0.9220 |         if (strlen(track_info.track_hdlr_name) == 0) {
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: bfabiszewski/libmobi src/parse_rawml.c::mobi_reconstruct_infl (distance=0.5456)
+  vulnerable_before:
+MOBI_RET mobi_reconstruct_infl(char *outstring, const MOBIIndx *infl, const MOBIIndexEntry *orth_entry) {
+    const char *label = orth_e...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored only a truncated prefix of the input.
+- Lines at or above threshold:
+- line 50: score=0.9220 |         if (strlen(track_info.track_hdlr_name) == 0) {
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+void APar_ExtractDetails(FILE *isofile, uint8_t optional_output) {
+  char uint32_buffer[5];
+  Trackage track = {0};
+
+  AtomicInfo *mvhdAtom = APar_FindAtom("moov.mvhd", false, VERSIONED_ATOM, 0);
+  if (mvhdAtom != NULL) ...
+
+Extracted patch:
+void APar_ExtractTrackDetails(char* uint32_buffer, FILE* isofile, Trackage* track, TrackInfo* track_info) {
+    // ...
+
+    if (strlen(track_info->track_hdlr_name) == 0) {
+        memcpy(track_info->track_hdlr_name, "[none listed]", 13);
+    }
+
+    // ...
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[51/52] znc___znc@2390ad111bde16a78c98ac44572090b33c3bd2d8
+SHA: 2390ad111bde16a78c98ac44572090b33c3bd2d8
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 1: score=0.0001 | void CClient::EchoMessage(const CMessage& Message) {
+- line 2: score=0.0001 |     CMessage EchoedMessage = Message;
+- line 3: score=0.0001 |     for (CClient* pClient : GetClients()) {
+- line 4: score=0.0001 |         if (pClient->HasEchoMessage() ||
+- line 5: score=0.0001 |             (pClient != this && (m_pNetwork->IsChan(Message.GetParam(0)) ||
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: xorg/xserver os/mitauth.c::MitCheckCookie (distance=0.5564)
+  vulnerable_before:
+XID
+MitCheckCookie(unsigned short data_length,
+               const char *data, ClientPtr client, const char **reason)
+{
+    struct auth *auth;
+
+    for (au...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 1: score=0.0001 | void CClient::EchoMessage(const CMessage& Message) {
+- line 2: score=0.0001 |     CMessage EchoedMessage = Message;
+- line 3: score=0.0001 |     for (CClient* pClient : GetClients()) {
+- line 4: score=0.0001 |         if (pClient->HasEchoMessage() ||
+- line 5: score=0.0001 |             (pClient != this && (m_pNetwork->IsChan(Message.GetParam(0)) ||
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+void CClient::EchoMessage(const CMessage& Message) {
+    CMessage EchoedMessage = Message;
+    for (CClient* pClient : GetClients()) {
+        if (pClient->HasEchoMessage() ||
+            (pClient != this && (m_pNetwork-...
+
+Extracted patch:
+void CClient::EchoMessage(const CMessage& Message) {
+    CMessage EchoedMessage = Message;
+    for (CClient* pClient : GetClients()) {
+        if (pClient->HasEchoMessage() ||
+            (pClient != this && (m_pNetwork->IsChan(std::string(Message.GetParam(0)).substr(0, 255)) || // truncate the string to 255 characters
+                                 pClient->HasSelfMessage()))) {
+            EchoedMessage.SetNick(GetNickMask());
+            pClient->PutClient(EchoedMessage);
+        }
+    }
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[52/52] znc___znc@d229761821da38d984a9e4098ad96842490dc001
+SHA: d229761821da38d984a9e4098ad96842490dc001
+JIN outputs:
+  localisation : Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 42: score=0.0431 |             PutIRC(Message.ToString(CMessage::ExcludePrefix |
+- line 6: score=0.0002 | 
+- line 41: score=0.0002 |             EchoMessage(Message);
+- line 1: score=0.0001 | bool CClient::OnTextMessage(CTextMessage& Message) {
+- line 2: score=0.0001 |     CString sTargets = Message.GetTarget();
+  retrieval    : Retrieval signals:
+- status: ok
+- retrieved_items: 1
+- item 1: sirdude/gurbalib lib/cmds/player/help.c::main (distance=0.3624)
+  vulnerable_before:
+static void main(string arg) {
+   string file;
+
+   if (!alsos) {
+      setup_alsos();
+   }
+
+   if (empty_str(arg) || (arg == "help")) {
+      this_playe...
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+Fault localisation: Localisation signals:
+- threshold: 0.20
+- The localization model scored the full input.
+- No lines met the threshold, so the fallback top-5 scored lines are shown:
+- line 42: score=0.0431 |             PutIRC(Message.ToString(CMessage::ExcludePrefix |
+- line 6: score=0.0002 | 
+- line 41: score=0.0002 |             EchoMessage(Message);
+- line 1: score=0.0001 | bool CClient::OnTextMessage(CTextMessage& Message) {
+- line 2: score=0.0001 |     CString sTargets = Message.GetTarget();
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+bool CClient::OnTextMessage(CTextMessage& Message) {
+    CString sTargets = Message.GetTarget();
+
+    VCString vTargets;
+    sTargets.Split(",", vTargets, false);
+
+    for (CString& sTarget : vTargets) {
+        Message....
+
+Extracted patch:
+bool CClient::OnTextMessage(CTextMessage& Message) {
+    CString sTargets = Message.GetTarget();
+
+    VCString vTargets;
+    sTargets.Split(",", vTargets, false);
+
+    for (CString& sTarget : vTargets) {
+        if (!IsValidTarget(sTarget)) { // Add input validation here
+            continue;
+        }
+
+        Message.SetTarget(sTarget);
+        if (m_pNetwork) {
+            // May be nullptr.
+            Message.SetChan(m_pNetwork->FindChan(sTarget));
+        }
+
+        // ...
+    }
+}
+
+Compile : True
+Fixed   : False
+============================================================
+OVERALL RESULTS
+============================================================
+Total cases   : 52
+Compile Rate  :  50 / 52  (96.2%)
+Pass@1         :   3 / 52  (5.8%)

@@ -1,11 +1,11 @@
 ABLATION PIPELINE RUN
 ============================================================
-Timestamp       : 2026-04-16 07:57:38
-Model           : llama3:8b
+Timestamp       : 2026-04-16 20:51:48
+Model           : mistral
 Ablation        : vanilla
 JIN augmentation: none
-Candidates (k)  : 1
-Temperature     : 0.01
+Candidates (k)  : 5
+Temperature     : 0.8
 Seed            : 42
 Ollama host     : http://100.97.159.90:11434
 JIN host        : http://100.78.242.59:8000
@@ -33,19 +33,90 @@ _blackbox_vlogger(int32_t target,
 	uint32_t...
 
 Extracted patch:
-// vulnerable hunk
-msg_len = qb_vsnprintf_serialize(chunk, max_size - sizeof(uint32_t), cs->format, ap);
-if (msg_len >= (max_size - sizeof(uint32_t))) {
-    // Log message too long to be stored in the blackbox.  Maximum is QB_LOG_MAX_LEN
-    msg_len = qb_vsnprintf_serialize(chunk, QB_LOG_MAX_LEN - sizeof(uint32_t),
-        "Log message too long to be stored in the blackbox.  "\
-        "Maximum is QB_LOG_MAX_LEN" , ap);
+static void
+_blackbox_vlogger(int32_t target,
+                  struct qb_log_callsite *cs, struct timespec *timestamp, va_list ap)
+{
+    size_t max_size;
+    size_t actual_size;
+    uint32_t fn_size;
+    char *chunk;
+    char *msg_len_pt;
+    uint32_t msg_len;
+    struct qb_log_target *t = qb_log_target_get(target);
+
+    if (t->instance == NULL) {
+        return;
+    }
+
+    fn_size = strlen(cs->function) + 1;
+
+    actual_size = 4 * sizeof(uint32_t) + sizeof(uint8_t) + fn_size + sizeof(struct timespec);
+    max_size = actual_size + t->max_line_length;
+
+    chunk = qb_rb_chunk_alloc(t->instance, max_size);
+
+    if (chunk == NULL) {
+        /* something bad has happened. abort blackbox logging */
+        qb_util_perror(LOG_ERR, "Blackbox allocation error, aborting blackbox log %s", t->filename);
+        qb_rb_close(qb_rb_lastref_and_ret(
+                (struct qb_ringbuffer_s **) &t->instance
+        ));
+        return;
+    }
+
+    /* line number */
+    memcpy(chunk, &cs->lineno, sizeof(uint32_t));
+    chunk += sizeof(uint32_t);
+
+    /* tags */
+    memcpy(chunk, &cs->tags, sizeof(uint32_t));
+    chunk += sizeof(uint32_t);
+
+    /* log level/priority */
+    memcpy(chunk, &cs->priority, sizeof(uint8_t));
+    chunk += sizeof(uint8_t);
+
+    /* function name */
+    memcpy(chunk, &fn_size, sizeof(uint32_t));
+    chunk += sizeof(uint32_t);
+    memcpy(chunk, cs->function, fn_size);
+    chunk += fn_size;
+
+    /* timestamp */
+    memcpy(chunk, timestamp, sizeof(struct timespec));
+    chunk += sizeof(struct timespec);
+
+    /* log message length before serialization */
+    msg_len = t->max_line_length - (actual_size - sizeof(uint32_t));
+
+    /* log message length */
+    msg_len_pt = chunk;
+    memcpy(msg_len_pt, &msg_len, sizeof(uint32_t));
+    chunk += sizeof(uint32_t);
+
+    /* log message */
+    size_t serialize_size = max_size - (chunk - (char*)&max_size);
+    msg_len = qb_vsnprintf_serialize(chunk, serialize_size, cs->format, ap);
+
+    if (msg_len >= max_size) {
+        /* Adjust the message content or throw an error */
+        chunk = msg_len_pt + sizeof(uint32_t); /* Reset */
+
+        /* Leave this at QB_LOG_MAX_LEN so as not to overflow the blackbox */
+        char tmp[QB_LOG_MAX_LEN];
+        qb_vsnprintf_serialize(tmp, QB_LOG_MAX_LEN, "Log message too long to be stored in the blackbox.  "\
+                       "Maximum is QB_LOG_MAX_LEN", ap);
+        msg_len = strlen(tmp) + sizeof("Log message too long to be stored in the blackbox. Maximum is QB_LOG_MAX_LEN");
+    }
+
+    actual_size += msg_len;
+
+    /* now that we know the length, write it */
+    memcpy(msg_len_pt, &msg_len, sizeof(uint32_t));
+
+    (void)qb_rb_chunk_commit(t->instance, actual_size);
 }
-
-actual_size += msg_len;
-
-// now that we know the length, write it
-memcpy(msg_len_pt, &msg_len, sizeof(uint32_t));
 
 Compile : True
 Fixed   : False
@@ -77,19 +148,9 @@ static cJSON *get_object_item(const cJSON * const object, const char * const nam
     }
 
     current_element = object->child;
-    if (case_sensitive)
+    while (current_element != NULL && (case_sensitive ? strcmp(name, current_element->string) : case_insensitive_strcmp((const unsigned char*)name, (const unsigned char*)(current_element->string)) != 0))
     {
-        while ((current_element != NULL) && (current_element->valuestring != NULL) && (strcmp(name, current_element->valuestring) != 0))
-        {
-            current_element = current_element->next;
-        }
-    }
-    else
-    {
-        while ((current_element != NULL) && (current_element->valuestring != NULL) && (case_insensitive_strcmp((const unsigned char*)name, (const unsigned char*)(current_element->valuestring)) != 0))
-        {
-            current_element = current_element->next;
-        }
+        current_element = current_element->next;
     }
 
     return current_element;
@@ -116,14 +177,11 @@ static bool _cjose_jwe_decrypt_dat_aes_gcm(cjose_jwe_t *jwe, cjose_err *err)
 
 Extracted patch:
 // set the expected GCM-mode authentication tag
-    uint8_t *auth_tag = jwe->enc_auth_tag.raw;
-    size_t auth_tag_len = jwe->enc_auth_tag.raw_len;
-
-    if (EVP_CIPHER_CTX_ctrl(ctx, CJOSE_EVP_CTRL_GCM_SET_TAG, auth_tag_len, auth_tag) != 1)
-    {
-        CJOSE_ERROR(err, CJOSE_ERR_CRYPTO);
-        goto _cjose_jwe_decrypt_dat_aes_gcm_fail;
-    }
+if (EVP_CIPHER_CTX_ctrl(ctx, CJOSE_EVP_CTRL_GCM_SET_TAG, jwe->enc_auth_tag.raw_len, jwe->enc_auth_tag.raw) != 1)
+{
+    CJOSE_ERROR(err, CJOSE_ERR_CRYPTO);
+    goto _cjose_jwe_decrypt_dat_aes_gcm_fail;
+}
 
 Compile : True
 Fixed   : False
@@ -184,8 +242,6 @@ int yr_object_array_set_item(
   else if (index >= array->items->count)
   {
     count = array->items->count * 2;
-    YR_ARRAY_ITEMS* old_items = array->items;
-
     array->items = (YR_ARRAY_ITEMS*) yr_realloc(
         array->items,
         sizeof(YR_ARRAY_ITEMS) + count * sizeof(YR_OBJECT*));
@@ -193,7 +249,7 @@ int yr_object_array_set_item(
     if (array->items == NULL)
       return ERROR_INSUFFICIENT_MEMORY;
 
-    for (i = old_items->count; i < count; i++)
+    for (i = array->items->count; i < count; i++)
       array->items->objects[i] = NULL;
 
     array->items->count = count;
@@ -202,11 +258,9 @@ int yr_object_array_set_item(
   item->parent = object;
   array->items->objects[index] = item;
 
-  // Free the previously allocated memory
-  if (old_items != NULL)
-  {
-    yr_free(old_items);
-  }
+  // Add this line to free memory when the array is no longer needed
+  void (*array_free)(YR_ARRAY_ITEMS*) = yr_object_array_free;
+  if (array->items != NULL) array_free(array->items);
 
   return ERROR_SUCCESS;
 }
@@ -235,12 +289,15 @@ int TNEFParse(TNEFStruct *TNEF) {
     printf("ERROR: Setup incorrect...
 
 Extracted patch:
-// vulnerable hunk
-    data = calloc(size, sizeof(BYTE));
-    if (data == NULL) {
-        printf("ERROR: Unable to allocate memory.\n");
-        return YTNEF_ERROR_ALLOCATING_MEMORY;
+data = malloc(size); /* malloc instead of calloc */
+if (data == NULL) {
+    printf("ERROR: Unable to allocate memory for data.
+");
+    if (TNEF->IO.CloseProc != NULL) {
+      TNEF->IO.CloseProc(&TNEF->IO);
     }
+    return YTNEF_NO_MEMORY;
+}
 
 Compile : True
 Fixed   : False
@@ -265,39 +322,12 @@ void ourWriteOut(CURL *curl, struct OutStruct *outs, const char *writeinfo)
 ...
 
 Extracted patch:
-// vulnerable hunk
-    if('%' == *ptr) {
-        if('%' == ptr[1]) {
-            // an escaped %-letter
-            fputc('%', stream);
-            ptr += 2;
-        }
-        else {
-            // this is meant as a variable to output
-            char *end;
-            char keepit;
-            int i;
-            if('{' == ptr[1]) {
-                bool match = FALSE;
-                end = strchr(ptr, '}');
-                ptr += 2; /* pass the % and the { */
-                if(!end) {
-                    fputs("%{", stream);
-                    continue;
-                }
-                keepit = *end;
-                *end = 0; /* zero terminate */
-                for(i = 0; replacements[i].name; i++) {
-                    if(curl_strequal(ptr, replacements[i].name)) {
-                        match = TRUE;
-                        switch(replacements[i].id) {
-                            case VAR_EFFECTIVE_URL:
-                                if((CURLE_OK ==
-                                    curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &stringp))
-                                   && stringp)
-                                    fputs(stringp, stream);
-                                break;
-                            // ... (rest of the cases remain the same)
+if(outs->filename && curl_strequal(ptr, replacements[i].name)) { // Check if outs->filename is not NULL
+  ...
+  if (stringp) // Check if stringp is not NULL
+    fputs(stringp, stream);
+  ...
+}
 
 Compile : True
 Fixed   : False
@@ -320,28 +350,12 @@ new_address(const char *hostname_or_ip) {
         struct sockaddr_sto...
 
 Extracted patch:
-struct Address *
-new_address(const char *hostname_or_ip) {
-    // ... (rest of the function remains the same)
-
-    /* hostname */
-    if (valid_hostname(hostname_or_ip)) {
-        len = strlen(hostname_or_ip);
-        struct Address *addr = malloc(
-                offsetof(struct Address, data) + len + 1);
-        if (addr != NULL) {
-            addr->type = HOSTNAME;
-            addr->port = 0;
-            addr->len = len;
-            memcpy(addr->data, hostname_or_ip, len);
-            // Sanitize the input by truncating it to the maximum allowed length
-            char *sanitized_hostname = strncpy(addr->data, hostname_or_ip, MAX_HOSTNAME_LENGTH - 1);
-            sanitized_hostname[MAX_HOSTNAME_LENGTH - 1] = '\0';
-        }
-
-        return addr;
-    }
+size_t len = strlen(hostname_or_ip);
+if (len >= sizeof(ip_buf)) {
+    return NULL; // Return early if input string is too long
 }
+strncpy(ip_buf, hostname_or_ip, len);
+ip_buf[len] = '';
 
 Compile : True
 Fixed   : False
@@ -362,7 +376,15 @@ static const char* jvp_literal_number_literal(jv n) {
   if (decNum...
 
 Extracted patch:
-int len = jvp_dec_number_ptr(n)->digits + 1; // Add 1 for the null-terminator
+if (lit->literal_data == NULL && !decNumberIsNaN(pdec) && !decNumberIsInfinite(pdec)) {
+    int len = jvp_dec_number_ptr(n)->digits + 14;
+    plit->literal_data = jv_mem_alloc(len);
+
+    // Preserve the actual precision as we have parsed it
+    // don't do decNumberTrim(pdec);
+
+    decNumberToString(pdec, plit->literal_data);
+}
 
 Compile : True
 Fixed   : False
@@ -391,70 +413,43 @@ BGD_DECLARE(gdImagePtr) gdImageCreate (int sx, int sy)
 Extracted patch:
 BGD_DECLARE(gdImagePtr) gdImageCreate (int sx, int sy)
 {
-    int i;
-    gdImagePtr im;
+	int i;
+	gdImagePtr im;
 
-    if (overflow2(sx, sy)) {
-        return NULL;
-    }
-    if (overflow2(sizeof (unsigned char *), sy)) {
-        return NULL;
-    }
-    if (overflow2(sizeof (unsigned char), sx)) {
-        return NULL;
-    }
+	if (overflow2(sx, sy)) {
+		return NULL;
+	}
 
-    im = (gdImage *) gdCalloc(1, sizeof(gdImage));
-    if (!im) {
-        return NULL;
-    }
+	im = (gdImage *) gdCalloc(1, sizeof(gdImage));
+	if (!im) {
+		return NULL;
+	}
 
-    /* Row-major ever since gd 1.3 */
-    im->pixels = (unsigned char **) gdMalloc (sizeof (unsigned char *) * sy);
-    if (!im->pixels) {
-        gdFree(im);
-        return NULL;
-    }
+	/* Row-major ever since gd 1.3 */
+	im->pixels = (unsigned char **) gdMalloc (sizeof (unsigned char *) * sy);
+	if (!im->pixels) {
+		gdFree(im);
+		return NULL;
+	}
 
-    im->polyInts = 0;
-    im->polyAllocated = 0;
-    im->brush = 0;
-    im->tile = 0;
-    im->style = 0;
-    for (i = 0; (i < sy); i++) {
-        /* Row-major ever since gd 1.3 */
-        im->pixels[i] = (unsigned char *) gdCalloc (sx, sizeof (unsigned char));
-        if (!im->pixels[i]) {
-            for (--i ; i >= 0; i--) {
-                gdFree(im->pixels[i]);
-            }
-            gdFree(im->pixels);
-            gdFree(im);
-            return NULL;
-        }
-
-    }
-    im->sx = sx;
-    im->sy = sy;
-    im->colorsTotal = 0;
-    im->transparent = (-1);
-    im->interlace = 0;
-    im->thick = 1;
-    im->AA = 0;
-    for (i = 0; (i < gdMaxColors); i++) {
-        im->open[i] = 1;
-    };
-    im->trueColor = 0;
-    im->tpixels = 0;
-    im->cx1 = 0;
-    im->cy1 = 0;
-    im->cx2 = im->sx - 1;
-    im->cy2 = im->sy - 1;
-    im->res_x = GD_RESOLUTION;
-    im->res_y = GD_RESOLUTION;
-    im->interpolation = NULL;
-    im->interpolation_id = GD_BILINEAR_FIXED;
-    return im;
+	im->polyInts = 0;
+	im->polyAllocated = 0;
+	im->brush = 0;
+	im->tile = 0;
+	im->style = 0;
+	for (i = 0; (i < sy); i++) {
+		/* Row-major ever since gd 1.3 */
+		im->pixels[i] = (unsigned char *) gdCalloc (sx, sizeof (unsigned char));
+		if (!im->pixels[i]) {
+			for (; i >= 0; i--) {
+				gdFree(im->pixels[i]);
+			}
+			gdFree(im->pixels);
+			gdFree(im);
+			return NULL;
+		}
+	}
+	... (rest of the code)
 }
 
 Compile : True
@@ -480,136 +475,9 @@ _gd2GetHeader (gdIOCtxPtr in, int *sx, int *sy,
 	i...
 
 Extracted patch:
-static int
-_gd2GetHeader (gdIOCtxPtr in, int *sx, int *sy,
-               int *cs, int *vers, int *fmt, int *ncx, int *ncy,
-               t_chunk_info ** chunkIdx)
-{
-    int i;
-    int ch;
-    char id[5];
-    t_chunk_info *cidx;
-    int sidx;
-    int nc;
-
-    GD2_DBG (printf ("Reading gd2 header info
-"));
-
-    for (i = 0; i < 4; i++) {
-        ch = gdGetC (in);
-        if (ch == EOF) {
-            GD2_DBG (printf ("Error reading file code: %s
-", id));
-            return 0;
-        };
-        id[i] = ch;
-    };
-    id[4] = 0;
-
-    GD2_DBG (printf ("Got file code: %s
-", id));
-
-    /* Equiv. of 'magick'.  */
-    if (strcmp (id, GD2_ID) != 0) {
-        GD2_DBG (printf ("Not a valid gd2 file
-"));
-        return 0;
-    };
-
-    /* Version */
-    if (gdGetWord (vers, in) == EOF) {
-        GD2_DBG (printf ("Error reading version
-"));
-        return 0;
-    };
-    if (*vers != 1 && *vers != 2) {
-        GD2_DBG (printf ("Bad version: %d
-", *vers));
-        return 0;
-    };
-
-    /* Image Size */
-    if (!gdGetWord (sx, in)) {
-        GD2_DBG (printf ("Could not get x-size
-"));
-        return 0;
-    }
-    if (!gdGetWord (sy, in)) {
-        GD2_DBG (printf ("Could not get y-size
-"));
-        return 0;
-    }
-    GD2_DBG (printf ("Image is %dx%d
-", *sx, *sy));
-
-    /* Chunk Size (pixels, not bytes!) */
-    if (gdGetWord (cs, in) == EOF) {
-        GD2_DBG (printf ("Error reading chunk size
-"));
-        return 0;
-    };
-    if (*cs < GD2_CHUNKSIZE_MIN || *cs > GD2_CHUNKSIZE_MAX) {
-        GD2_DBG (printf ("Bad chunk size: %d
-", *cs));
-        return 0;
-    };
-
-    /* Data Format */
-    if (gdGetWord (fmt, in) == EOF) {
-        GD2_DBG (printf ("Error reading format
-"));
-        return 0;
-    };
-    if (*fmt != GD2_FMT_RAW && *fmt != GD2_FMT_COMPRESSED &&
-            *fmt != GD2_FMT_TRUECOLOR_RAW && *fmt != GD2_FMT_TRUECOLOR_COMPRESSED) {
-        GD2_DBG (printf ("Bad data format: %d
-", *fmt));
-        return 0;
-    };
-
-    /* # of chunks wide */
-    if (gdGetWord (ncx, in) == EOF) {
-        GD2_DBG (printf ("Error reading number of chunks wide
-"));
-        return 0;
-    };
-    /* # of chunks high */
-    if (gdGetWord (ncy, in) == EOF) {
-        GD2_DBG (printf ("Error reading number of chunks vertically
-"));
-        return 0;
-    };
-
-    if (gd2_compressed (*fmt)) {
-        nc = (*ncx) * (*ncy);
-        GD2_DBG (printf ("Reading %d chunk index entries
-", nc));
-        sidx = sizeof (t_chunk_info) * nc;
-        cidx = gdCalloc (sidx, 1);
-        if (!cidx) {
-            return 0;
-        }
-        for (i = 0; i < nc; i++) {
-            if (gdGetInt (&cidx[i].offset, in) == EOF) {
-                GD2_DBG (printf ("Error reading chunk index entry
-"));
-                gdFree(cidx);
-                return 0;
-            };
-            if (gdGetInt (&cidx[i].size, in) == EOF) {
-                GD2_DBG (printf ("Error reading chunk index entry
-"));
-                gdFree(cidx);
-                return 0;
-            };
-        };
-        *chunkIdx = cidx;
-    };
-
-    GD2_DBG (printf ("gd2 header complete
-"));
-
-    return 1;
+t_chunk_info *cidx = (t_chunk_info *)malloc(sidx);
+if (!cidx) {
+    goto fail1;
 }
 
 Compile : True
@@ -631,11 +499,93 @@ int read_image_tga( gdIOCtx *ctx, oTga *tga )
 	unsigned char* conversio...
 
 Extracted patch:
-if (rle_size < 0) {
+The vulnerability in this code appears to be related to buffer overflows when dealing with RLE-compressed TGA images. To fix this, we can modify the code to properly check for buffer bounds and ensure that the decompression_buffer and conversion_buffer are not accessed beyond their allocated size.
+
+Here's the corrected function:
+
+```c++
+int read_image_tga(gdIOCtx* ctx, oTga* tga)
+{
+    int pixel_block_size = (tga->bits / 8);
+    int image_block_size = (tga->width * tga->height) * pixel_block_size;
+    int* decompression_buffer = NULL;
+    unsigned char* conversion_buffer = NULL;
+    int buffer_caret = 0;
+    int bitmap_caret = 0;
+    int i = 0;
+    int encoded_pixels;
+    int rle_size;
+
+    if (overflow2(tga->width, tga->height)) {
+        return -1;
+    }
+
+    if (overflow2(tga->width * tga->height, pixel_block_size)) {
+        return -1;
+    }
+
+    if (overflow2(image_block_size, sizeof(int))) {
+        return -1;
+    }
+
+    if (tga->imagetype != TGA_TYPE_RGB && tga->imagetype != TGA_TYPE_RGB_RLE)
+        return -1;
+
+    decompression_buffer = (int*)gdMalloc(image_block_size * sizeof(int));
+    if (decompression_buffer == NULL)
+        return -1;
+
+    conversion_buffer = (unsigned char*)gdMalloc(image_block_size * sizeof(unsigned char));
+    if (conversion_buffer == NULL) {
+        gdFree(decompression_buffer);
+        return -1;
+    }
+
+    rle_size = gdGetBuf(conversion_buffer, image_block_size, ctx);
+    if (rle_size <= 0) {
+        gdFree(conversion_buffer);
+        gdFree(decompression_buffer);
+        return -1;
+    }
+
+    buffer_caret = 0;
+    bitmap_caret = 0;
+
+    while (bitmap_caret < image_block_size) {
+        switch ((conversion_buffer[buffer_caret] & TGA_RLE_FLAG)) {
+            case TGA_RLE_FLAG:
+                encoded_pixels = ( (conversion_buffer[ buffer_caret ] & ~TGA_RLE_FLAG) + 1 );
+                if ((bitmap_caret + (encoded_pixels * pixel_block_size)) > image_block_size) {
+                    gdFree(decompression_buffer);
+                    gdFree(conversion_buffer);
+                    return -1;
+                }
+
+                memcpy(tga->bitmap + bitmap_caret, decompression_buffer + buffer_caret + sizeof(int), encoded_pixels * pixel_block_size * sizeof(int));
+                buffer_caret += (encoded_pixels * pixel_block_size) + sizeof(int);
+                bitmap_caret += encoded_pixels * pixel_block_size;
+                break;
+            case TGA_UNCOMPRESSED:
+                if ((bitmap_caret + pixel_block_size) > image_block_size || buffer_caret + pixel_block_size > rle_size) {
+                    gdFree(decompression_buffer);
+                    gdFree(conversion_buffer);
+                    return -1;
+                }
+
+                memcpy(tga->bitmap + bitmap_caret, conversion_buffer + buffer_caret, pixel_block_size * sizeof(int));
+                buffer_caret += pixel_block_size;
+                bitmap_caret += pixel_block_size;
+                break;
+        }
+    }
+
     gdFree(conversion_buffer);
     gdFree(decompression_buffer);
-    return -1;
+    return 1;
 }
+```
+
+This fixed version of the function checks for buffer bounds before copying data and avoids potential buffer overflows.
 
 Compile : True
 Fixed   : False
@@ -660,13 +610,26 @@ _gd2GetHeader (gdIOCtxPtr in, int *sx, int *sy,
 	i...
 
 Extracted patch:
-// infill location
-if (((long long)(*ncx) * (long long)(*ncy)) >= INT_MAX) {
-    GD2_DBG (printf ("Error: Overflow in calculating nc\n"));
-    goto fail1;
-}
+// vulnerable hunk
+    t_chunk_info *cidx;
+    int i, ncc = *ncx * *ncy;
 
-nc = (*ncx) * (*ncy);
+    cidx = (t_chunk_info *) gdMalloc(sizeof(t_chunk_info) * ncc);
+    if (cidx == NULL) {
+        goto fail1;
+    }
+
+    for (i = 0; i < ncc; i++) {
+        if (gdGetInt(&cidx[i].offset, in) != 1) {
+            goto fail2;
+        };
+        if (gdGetInt(&cidx[i].size, in) != 1) {
+            goto fail2;
+        };
+        if (cidx[i].offset < 0 || cidx[i].size < 0)
+            goto fail2;
+    }
+    *chunkIdx = cidx;
 
 Compile : True
 Fixed   : False
@@ -693,18 +656,51 @@ BGD_DECLARE(void) gdImageFillToBorder (gdImagePtr im, int x, int y, int border, 
 Extracted patch:
 BGD_DECLARE(void) gdImageFillToBorder (gdImagePtr im, int x, int y, int border, int color)
 {
-    // ... (rest of the function remains the same)
+	int lastBorder;
+	/* Seek left */
+	int leftLimit = (-1);
+	int rightLimit = -1;
+	int i;
+	int restoreAlphaBleding;
 
-    if (border < 0) {
-        // Add input validation to ensure that 'border' is a valid pixel value
-        if (color < 0 || color >= im->trueColorMax) {
-            return;
-        }
-        // Refuse to fill to a non-solid border
-        return;
-    }
+	if (border < 0) {
+		/* Refuse to fill to a non-solid border */
+		return;
+	}
 
-    // ... (rest of the function remains the same)
+	if (x >= im->sx) {
+		x = im->sx - 1;
+	} else if (x < 0) {
+		x = 0;
+	}
+	if (y >= im->sy) {
+		y = im->sy - 1;
+	} else if (y < 0) {
+		y = 0;
+	}
+	// Seek left
+	for (i = x; (i >= 0); i--) {
+		if (gdImageGetPixel (im, i, y) == border) {
+			break;
+		}
+		gdImageSetPixel (im, i, y, color);
+		leftLimit = i < im->sx ? i + 1 : leftLimit; // ensure leftLimit is never greater than im->sx
+	}
+	if (leftLimit == (-1)) {
+		im->alphaBlendingFlag = restoreAlphaBleding;
+		return;
+	}
+	// Seek right
+	rightLimit = x < 0 ? -1 : x + 1; // ensure rightLimit is never greater than im->sx
+	for (i = (x + 1); (i <= rightLimit); i++) {
+		if (gdImageGetPixel (im, i, y) == border) {
+			break;
+		}
+		gdImageSetPixel (im, i, y, color);
+		rightLimit = i < im->sx ? i + 1 : rightLimit; // ensure rightLimit is never greater than im->sx
+	}
+	// Look at lines above and below and start paints
+	...
 }
 
 Compile : True
@@ -733,50 +729,14 @@ ssize_t uv__idna_toascii(const char* s, const char* se, char* d, char* de) {
     c = uv__utf8...
 
 Extracted patch:
-ssize_t uv__idna_toascii(const char* s, const char* se, char* d, char* de) {
-  // ...
-  
-  ds = d;
-  while (si < se) {
-    st = si;
-    c = uv__utf8_decode1(&si, se);
-
-    if (c == UINT_MAX)
-      return UV_EINVAL;
-
-    if (c != '.')
-      if (c != 0x3002)  /* 。 */
-        if (c != 0xFF0E)  /* ． */
-          if (c != 0xFF61)  /* ｡ */
-            continue;
-
-    rc = uv__idna_toascii_label(s, st, &d, de);
-
-    if (rc < 0)
-      return rc;
-
-    if (d < de)
-      *d++ = '.';
-
-    s = si;
-  }
-
-  if (s < se) {
-    rc = uv__idna_toascii_label(s, se, &d, de);
-
-    if (rc < 0)
-      return rc;
-  }
-
-  if (d >= de) {
-    // Check for buffer overflow
-    if ((de - d) < sizeof(char)) {
-      return UV_EINVAL;
-    }
-  }
-
-  *d++ = '';
-  return d - ds;  /* Number of bytes written. */
+if (d + 2 < de) // Check if there is enough space for '.'; and ''
+{
+    *d++ = '.';
+    *d++ = '';
+}
+else
+{
+    return UV_EINVAL; // Return an error if there isn't enough space.
 }
 
 Compile : True
@@ -799,17 +759,10 @@ static void singlevar (LexState *ls, expdesc *var) {
   ...
 
 Extracted patch:
-static void singlevar (LexState *ls, expdesc *var) {
-  TString *varname = str_checkname(ls);
-  FuncState *fs = ls->fs;
-  singlevaraux(fs, varname, var, 1);
-  if (var->k == VVOID) {  /* global name? */
-    expdesc key;
-    singlevaraux(fs, ls->envn, var, 1);  /* get environment variable */
-    lua_assert(var->k != VVOID);  /* this one must exist */
+if (varname) {  /* check if varname is not null */
     codestring(&key, varname);  /* key is variable name */
-    luaK_indexed(fs, var, &key);  /* env[varname] */
-  }
+} else {
+    // Handle the case where varname is null
 }
 
 Compile : True
@@ -832,27 +785,41 @@ njs_array_prototype_splice(njs_vm_t *vm, njs_value_t *args, njs_uint_t nargs,
     njs_value_t  ...
 
 Extracted patch:
-if (delta != 0) {
-    if (delta > 0) {
-        ret = njs_array_expand(vm, array, 0, delta);
+if (njs_fast_path(njs_is_fast_array(this))) {
+    array = njs_array(this);
+
+    if (delta != 0) {
+        /*
+         * Relocate the rest of items.
+         * Index of the first item is in "n".
+         */
+        if (delta > 0) {
+            ret = njs_array_expand(vm, array, 0, delta);
+            if (njs_slow_path(ret != NJS_OK)) {
+                return ret;
+            }
+        }
+
+        ret = njs_array_copy_within(vm, this, start + items, start + delete,
+                                     array->length - (start + delete), 0);
         if (njs_slow_path(ret != NJS_OK)) {
             return ret;
         }
+
+        array->length += delta;
     }
 
-    start += items;
-
-    // Check that the start index is within the valid range for the array
-    if (start < 0 || start >= array->length) {
-        njs_type_error(vm, "Invalid length");
+    /* Check the index is within bounds before copying new items. */
+    if (items > 0 && start + items <= array->length) {
+        memcpy(&array->start[start], &args[3],
+               items * sizeof(njs_value_t));
+    } else {
+        /* Handle out-of-bounds error here. */
+        njs_type_error(vm, "Index out of bounds");
         return NJS_ERROR;
     }
-
-    ret = njs_array_copy_within(vm, this, start, start + delta,
-                                 array->length - (start + delta), delta < 0);
-    if (njs_slow_path(ret != NJS_OK)) {
-        return ret;
-    }
+} else {
+    // ... (rest of the original code)
 }
 
 Compile : True
@@ -884,6 +851,7 @@ njs_typed_array_set_value(njs_vm_t *vm, njs_typed_array_t *array,
     double              num;
     njs_int_t           ret;
     njs_array_buffer_t  *buffer;
+    size_t               value_size;
 
     ret = njs_value_to_number(vm, setval, &num);
     if (njs_slow_path(ret != NJS_OK)) {
@@ -895,19 +863,22 @@ njs_typed_array_set_value(njs_vm_t *vm, njs_typed_array_t *array,
         return NJS_ERROR;
     }
 
-    njs_typed_array_prop_set(vm, array, index, num);
+    // Get the size of njs_value_t structure
+    value_size = sizeof(njs_value_t);
 
-    // Create a copy of the value before freeing the original
-    njs_value_t *copy = njs_value_copy(vm, setval);
-    if (njs_slow_path(copy == NULL)) {
+    // Check if the destination value_t buffer has enough space to hold the number
+    if (index * value_size > setval->nv_len) {
+        // Handle the case where the index is out of bounds
         return NJS_ERROR;
     }
 
-    // Modify the copied value
-    njs_set_number(copy, num);
+    // Copy the number into the destination njs_value_t structure
+    memcpy(setval, &num, sizeof(double));
 
-    // Free the original value
-    njs_value_free(vm, setval);
+    // Update the length of the value
+    setval->nv_len = index * value_size;
+
+    njs_typed_array_prop_set(vm, array, index, num);
 
     return NJS_OK;
 }
@@ -934,9 +905,36 @@ njs_array_convert_to_slow_array(njs_vm_t *vm, njs_array_t *array)
     ar...
 
 Extracted patch:
-njs_set_array(&value, array);
-njs_mp_free(vm->mem_pool, array->start);
-array->start = NULL;
+njs_int_t
+njs_array_convert_to_slow_array(njs_vm_t *vm, njs_array_t *array)
+{
+    uint32_t           i, length;
+    njs_value_t        index, value;
+    njs_object_prop_t  *prop;
+
+    array->object.fast_array = 0;
+
+    length = array->length;
+
+    for (i = 0; i < length; i++) {
+        if (njs_is_valid(&array->start[i])) {
+            njs_uint32_to_string(&index, i);
+            prop = njs_object_property_add(vm, &value, &index, 0);
+            if (njs_slow_path(prop == NULL)) {
+                return NJS_ERROR;
+            }
+
+            prop->value = array->start[i];
+        }
+    }
+
+    /* GC: release value. */
+
+    njs_mp_free(vm->mem_pool, array->start);
+    array->start = NULL;
+
+    return NJS_OK;
+}
 
 Compile : True
 Fixed   : False
@@ -958,16 +956,15 @@ njs_array_prototype_sort(njs_vm_t *vm, njs_value_t *args, njs_uint_t nargs,
     ...
 
 Extracted patch:
-// vulnerable hunk
-    if (njs_fast_path(fast_path)) {
+if (njs_fast_path(fast_path)) {
         array = njs_array(this);
         start = array->start;
 
-        slots = njs_mp_alloc(vm->mem_pool,
-                             sizeof(njs_array_sort_slot_t) * length);
-        if (njs_slow_path(slots == NULL)) {
+        slots = njs_mp_alloc(vm->mem_pool, sizeof(njs_array_sort_slot_t) * length);
+        if (slots == NULL) {
             return NJS_ERROR;
         }
+        memset(slots, 0, sizeof(njs_array_sort_slot_t) * length); // Initialize slots to zero
 
         und = 0;
         p = slots;
@@ -989,27 +986,10 @@ Extracted patch:
             p->pos = i;
             p->str = NULL;
             p++;
-
-            // Check if p is within the bounds of the allocated memory
-            if (p >= end) {
-                nlen = njs_min(njs_max((p - slots) * 2, 8), length);
-                nslots = njs_mp_alloc(vm->mem_pool,
-                                      sizeof(njs_array_sort_slot_t) * nlen);
-                if (njs_slow_path(nslots == NULL)) {
-                    njs_memory_error(vm);
-                    return NJS_ERROR;
-                }
-
-                // Copy the memory to the new allocated space
-                memcpy(nslots, slots, (p - slots) * sizeof(njs_array_sort_slot_t));
-                p = nslots;
-                end = p + nlen;
-            }
         }
 
         len = p - slots;
-
-    } else {
+    }
 
 Compile : True
 Fixed   : False
@@ -1034,13 +1014,16 @@ njs_module_path(njs_vm_t *vm, const njs_str_t *dir, njs_module_info_t *info)
   ...
 
 Extracted patch:
+#include <stdlib.h> // For malloc() and realpath()
+// ... (other required includes)
+
 static njs_int_t
 njs_module_path(njs_vm_t *vm, const njs_str_t *dir, njs_module_info_t *info)
 {
     char        *p;
     size_t      length;
     njs_bool_t  trail;
-    char        src[NJS_MAX_PATH + 1];
+    char        *src = NULL; // Allocate memory for the combined path
 
     trail = 0;
     length = info->name.length;
@@ -1059,11 +1042,12 @@ njs_module_path(njs_vm_t *vm, const njs_str_t *dir, njs_module_info_t *info)
         }
     }
 
-    if (njs_slow_path(length > NJS_MAX_PATH)) {
-        return NJS_ERROR;
+    src = malloc(length + NJS_MAX_PATH + 1); // Allocate extra space for the combined path and a null terminator
+    if (!src) {
+        return NJS_ERROR; // Return an error if malloc fails
     }
 
-    p = &src[0];
+    p = src;
 
     if (dir != NULL) {
         p = (char *) njs_cpymem(p, dir->start, dir->length);
@@ -1074,20 +1058,24 @@ njs_module_path(njs_vm_t *vm, const njs_str_t *dir, njs_module_info_t *info)
     }
 
     p = (char *) njs_cpymem(p, info->name.start, info->name.length);
-    *p = '\0'; // Add null-terminator
+    *p = '';
 
-    p = realpath(&src[0], &info->path[0]);
+    p = realpath(src, &info->path[0]);
     if (p == NULL) {
+        free(src); // Free the allocated memory in case of failure
         return NJS_DECLINED;
     }
 
     info->fd = open(&info->path[0], O_RDONLY);
     if (info->fd < 0) {
+        free(src); // Free the allocated memory in case of failure
         return NJS_DECLINED;
     }
 
-    info->file.start = (u_char *) &info->path[0];
+    memcpy(info->file.start, info->path[0], njs_strlen(&info->path[0]));
     info->file.length = njs_strlen(info->file.start);
+
+    free(src); // Free the allocated memory after using it
 
     return NJS_OK;
 }
@@ -1115,9 +1103,8 @@ Extracted patch:
 static njs_jump_off_t
 njs_vmcode_typeof(njs_vm_t *vm, njs_value_t *value, njs_value_t *invld)
 {
-    /* ECMAScript 5.1: null, array and regexp are objects. */
-
-    static const njs_value_t  *types[] = {
+    static const njs_value_t  *types[NJS_VALUE_TYPE_MAX] = {
+        // Initialize all elements of the types array
         &njs_string_object,
         &njs_string_undefined,
         &njs_string_boolean,
@@ -1127,20 +1114,10 @@ njs_vmcode_typeof(njs_vm_t *vm, njs_value_t *value, njs_value_t *invld)
         &njs_string_data,
         &njs_string_external,
         &njs_string_invalid,
+        // ...
     };
 
-    switch (value->type) {
-        case 0:
-            vm->retval = *types[0];
-            break;
-        case 1:
-            vm->retval = *types[1];
-            break;
-        // Add more cases for other types
-        default:
-            // Handle unknown type
-            break;
-    }
+    vm->retval = *types[value->type];
 
     return sizeof(njs_vmcode_2addr_t);
 }
@@ -1167,27 +1144,44 @@ njs_vmcode_array(njs_vm_t *vm, u_char *pc)
     code = (njs_vmcode_ar...
 
 Extracted patch:
-if (code->ctor) {
-    /* Array of the form [,,,], [1,,]. */
-    value = array->start;
-    length = array->length;
+static njs_jump_off_t
+njs_vmcode_array(njs_vm_t *vm, u_char *pc)
+{
+    uint32_t            length;
+    njs_array_t         *array;
+    njs_value_t         *value;
+    njs_vmcode_array_t  *code;
 
-    do {
-        njs_set_invalid(value);
-        if (value < array->end) {  // Check bounds before incrementing
-            value++;
+    code = (njs_vmcode_array_t *) pc;
+
+    array = njs_array_alloc(vm, 0, code->length, NJS_ARRAY_SPARE);
+
+    if (njs_fast_path(array != NULL)) {
+
+        if (code->ctor) {
+            /* Array of the form [,,,], [1,,]. */
+            value = array->start;
+            length = array->length;
+
+            if (length > 0) {
+                do {
+                    njs_set_invalid(value);
+                    value++;
+                    length--;
+                } while (length != 0);
+            }
+        } else {
+            /* Array of the form [], [,,1], [1,2,3]. */
+            array->length = 0;
         }
-        length--;
-    } while (length != 0);
 
-} else {
-    /* Array of the form [], [,,1], [1,2,3]. */
-    array->length = 0;
+        njs_set_array(&vm->retval, array);
+
+        return sizeof(njs_vmcode_array_t);
+    }
+
+    return NJS_ERROR;
 }
-
-njs_set_array(&vm->retval, array);
-
-return sizeof(njs_vmcode_array_t);
 
 Compile : True
 Fixed   : False
@@ -1210,11 +1204,10 @@ static size_t exif_convert_any_to_int(void *value, int format, int motorola_inte
 		case TAG_FMT_BYT...
 
 Extracted patch:
-// Corrected line
-return (php_ifd_get32s(value, motorola_intel) == 0 || s_den == 0) ? 0 : php_ifd_get32s(value, motorola_intel) / s_den;
+return php_ifd_get32s(value, motorola_intel) / (size_t)s_den;
 
 Compile : True
-Fixed   : False
+Fixed   : True
 ============================================================
 [24/52] php___php-src@28a6ed9f9a36b9c517e4a8a429baf4dd382fc5d5
 SHA: 28a6ed9f9a36b9c517e4a8a429baf4dd382fc5d5
@@ -1238,54 +1231,56 @@ SPL_METHOD(SplDoublyLinkedList, offsetSet)
 Extracted patch:
 SPL_METHOD(SplDoublyLinkedList, offsetSet)
 {
-    zval                  *zindex, *value;
-    spl_dllist_object     *intern;
+	zval                  *zindex, *value;
+	spl_dllist_object     *intern;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "zz", &zindex, &value) == FAILURE) {
-        return;
-    }
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "zz", &zindex, &value) == FAILURE) {
+		return;
+	}
 
-    intern = Z_SPLDLLIST_P(getThis());
+	intern = Z_SPLDLLIST_P(getThis());
 
-    if (Z_TYPE_P(zindex) == IS_NULL) {
-        /* $obj[] = ... */
-        spl_ptr_llist_push(intern->llist, value);
-    } else {
-        /* $obj[$foo] = ... */
-        zend_long                   index;
-        spl_ptr_llist_element *element;
+	if (Z_TYPE_P(zindex) == IS_NULL) {
+		/* $obj[] = ... */
+		spl_ptr_llist_push(intern->llist, value);
+	} else {
+		/* $obj[$foo] = ... */
+		zend_long                   index;
+		spl_ptr_llist_element *element;
 
-        index = spl_offset_convert_to_long(zindex);
+		index = spl_offset_convert_to_long(zindex);
 
-        if (index < 0 || index >= intern->llist->count) {
-            zval_ptr_dtor(value);
-            zend_throw_exception(spl_ce_OutOfRangeException, "Offset invalid or out of range", 0);
-            return;
-        }
+		if (index < 0 || index >= intern->llist->count) {
+			zval_ptr_dtor(value);
+			zend_throw_exception(spl_ce_OutOfRangeException, "Offset invalid or out of range", 0);
+			return;
+		}
 
-        element = spl_ptr_llist_offset(intern->llist, index, intern->flags & SPL_DLLIST_IT_LIFO);
+		element = spl_ptr_llist_offset(intern->llist, index, intern->flags & SPL_DLLIST_IT_LIFO);
 
-        if (element != NULL) {
-            /* call dtor on the old element as in spl_ptr_llist_pop */
-            if (intern->llist->dtor) {
-                intern->llist->dtor(element);
-            }
+		if (element != NULL) {
+			/* call dtor on the old element */
+			if (intern->llist->dtor) {
+				intern->llist->dtor(element);
+			}
 
-            /* the element is replaced, delref the old one as in
-             * SplDoublyLinkedList::pop() */
-            zval_ptr_dtor(&element->data);
+			/* the element is replaced, copy the new value and delref the old one as in SplDoublyLinkedList::pop() */
+			ZVAL_COPY_VALUE(&element->data, value);
+			zval_ptr_dtor(&element->data);
 
-            ZVAL_COPY_VALUE(&element->data, value);
+			/* new element, call ctor as in spl_ptr_llist_push */
+			if (intern->llist->ctor) {
+				intern->llist->ctor(element);
+			}
+		} else {
+			zval_ptr_dtor(value);
+			zend_throw_exception(spl_ce_OutOfRangeException, "Offset invalid", 0);
+			return;
+		}
+	}
 
-            /* new element, call ctor as in spl_ptr_llist_push */
-            if (intern->llist->ctor) {
-                intern->llist->ctor(element);
-            }
-        } else {
-            zend_throw_exception(spl_ce_OutOfRangeException, "Offset invalid", 0);
-            return;
-        }
-    }
+	// move zval_ptr_dtor(value); here
+	zval_ptr_dtor(value);
 } /* }}} */
 
 Compile : True
@@ -1310,10 +1305,22 @@ void gdImageFillToBorder (gdImagePtr im, int x, int y, int border, int color)
 		/* Refuse to fill...
 
 Extracted patch:
-// infill location
-if (border < 0) {
-    /* Refuse to fill to a non-solid border */
-    return;
+#define MAX_RECURSION 1024
+
+void gdImageFillToBorder (gdImagePtr im, int x, int y, int border, int color)
+{
+	int lastBorder;
+	/* Seek left */
+	int leftLimit = -1, rightLimit;
+	int i, restoreAlphaBlending = 0;
+	int recursionLevel = 0;
+
+	if (border < 0 || recursionLevel >= MAX_RECURSION) {
+		/* Refuse to fill to a non-solid border or exceed the maximum recursion level */
+		return;
+	}
+
+	// ... The rest of your code remains the same
 }
 
 Compile : True
@@ -1337,8 +1344,23 @@ static int wddx_stack_destroy(wddx_stack *stack)
 				zval_ptr_dtor(&((st_entry *)stack->el...
 
 Extracted patch:
-if (stack->elements[i]->data) {
-    zval_ptr_dtor(&((st_entry *)stack->elements[i])->data);
+static int wddx_stack_destroy(wddx_stack *stack)
+{
+	register int i;
+
+	if (stack->elements) {
+		for (i = 0; i < stack->top; i++) {
+			if (((st_entry *)stack->elements[i])->data && ((st_entry *)stack->elements[i])->data)	{ // Added the condition to check if data pointer exists
+				zval_ptr_dtor(&((st_entry *)stack->elements[i])->data);
+			}
+			if (((st_entry *)stack->elements[i])->varname) {
+				efree(((st_entry *)stack->elements[i])->varname);
+			}
+			efree(stack->elements[i]);
+		}
+		efree(stack->elements);
+	}
+	return SUCCESS;
 }
 
 Compile : True
@@ -1370,12 +1392,10 @@ static void *createArrayObject(const redisReadTask *task, size_t elements) {
     if (r == NULL)
         return NULL;
 
-    if (elements > 0) {
-        r->element = hi_calloc(elements, sizeof(redisReply*));
-        if (r->element == NULL) {
-            freeReplyObject(r);
-            return NULL;
-        }
+    r->element = hi_calloc(elements,sizeof(redisReply*));
+    if (r->element == NULL) {
+        freeReplyObject(r);
+        return NULL;
     }
 
     r->elements = elements;
@@ -1421,12 +1441,15 @@ void hincrbyfloatCommand(client *c) {
     unsigned char *vstr;
     unsigned int vlen;
 
-    if (getLongDoubleFromObjectOrReply(c,c->argv[3],&incr,NULL) != C_OK) return;
-    if ((o = hashTypeLookupWriteOrCreate(c,c->argv[1])) == NULL) return;
-    if (hashTypeGetValue(o,c->argv[2]->ptr,&vstr,&vlen,&ll) == C_OK) {
+    if (getLongDoubleFromObjectOrReply(c, c->argv[3], &incr, NULL) != C_OK) return;
+    if ((o = hashTypeLookupWriteOrCreate(c, c->argv[1])) == NULL) {
+        addReplyError(c, "ERR Hash does not exist");
+        return;
+    }
+    if (hashTypeGetValue(o, c->argv[2]->ptr, &vstr, &vlen, &ll) == C_OK) {
         if (vstr) {
-            if (string2ld((char*)vstr,vlen,&value) == 0) {
-                addReplyError(c,"hash value is not a float");
+            if (string2ld((char*)vstr, vlen, &value) == 0) {
+                addReplyError(c, "hash value is not a float");
                 return;
             }
         } else {
@@ -1437,33 +1460,13 @@ void hincrbyfloatCommand(client *c) {
     }
 
     if (isnan(value) || isinf(value)) {
-        addReplyError(c,"increment would produce NaN or Infinity");
+        addReplyError(c, "ERR increment would produce NaN or Infinity");
         return;
     }
 
     value += incr;
-    if (isnan(value) || isinf(value)) {
-        addReplyError(c,"increment would produce NaN or Infinity");
-        return;
-    }
 
-    char buf[MAX_LONG_DOUBLE_CHARS];
-    int len = ld2string(buf,sizeof(buf),value,LD_STR_HUMAN);
-    new = sdsnewlen(buf,len);
-    hashTypeSet(o,c->argv[2]->ptr,new,HASH_SET_TAKE_VALUE);
-    addReplyBulkCBuffer(c,buf,len);
-    signalModifiedKey(c,c->db,c->argv[1]);
-    notifyKeyspaceEvent(NOTIFY_HASH,"hincrbyfloat",c->argv[1],c->db->id);
-    server.dirty++;
-
-    /* Always replicate HINCRBYFLOAT as an HSET command with the final value
-     * in order to make sure that differences in float precision or formatting
-     * will not create differences in replicas or after an AOF restart. */
-    robj *newobj;
-    newobj = createRawStringObject(buf,len);
-    rewriteClientCommandArgument(c,0,shared.hset);
-    rewriteClientCommandArgument(c,3,newobj);
-    decrRefCount(newobj);
+    // Rest of the code remains the same...
 }
 
 Compile : True
@@ -1488,10 +1491,10 @@ static int zipfileUpdate(
   ZipfileEnt...
 
 Extracted patch:
-if( zPath ){
-    nPath = (int)strlen(zPath);
+if (zPath != NULL) {
+  nPath = (int)strlen(zPath);
 } else {
-    // Handle the case where zPath is NULL
+  // Handle the case where zPath is NULL
 }
 
 Compile : True
@@ -1512,15 +1515,17 @@ ikev1_id_print(netdissect_options *ndo, u_char tpay _U_,
 	       uint32_t proto ...
 
 Extracted patch:
-if (len < 32)
-    ND_PRINT((ndo," len=%d [bad: < 32]", len));
-else {
-    ND_PRINT((ndo," len=%d %s/0x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x", len,
-              ip6addr_string(ndo, data),
-              mask[0], mask[1], mask[2], mask[3],
-              mask[4], mask[5], mask[6], mask[7],
-              mask[8], mask[9], mask[10], mask[11],
-              mask[12], mask[13], mask[14], mask[15]));
+case IPSECDOI_ID_IPV6_ADDR_SUBNET:
+{
+	const u_char *mask;
+	if (len < 28) // Updated boundary check to account for 16 bytes for in6_addr and 16 bytes for mask
+		ND_PRINT((ndo," len=%d [bad: < 28]", len));
+	else {
+		mask = (const u_char *)(data + sizeof(struct in6_addr));
+		// ... rest of the code remains the same
+	}
+	len = 0;
+	break;
 }
 
 Compile : True
@@ -1545,16 +1550,10 @@ bootp_print(netdissect_options *ndo,
 	bp =...
 
 Extracted patch:
-if (*bp->bp_sname) {
-    ND_PRINT((ndo, "
-  sname \""));
-    if (fn_printztn(ndo, bp->bp_sname, strlen(bp->bp_sname), ndo->ndo_snapend)) {
-        ND_PRINT((ndo, "\""));
-        ND_PRINT((ndo, "%s", tstr + 1));
-        return;
-    }
-    ND_PRINT((ndo, "\""));
-}
+// Corrected vulnerable hunk
+__builtin_assume((size_t)bp->bp_flags < sizeof(bp->bp_flags));
+ND_PRINT((ndo, ", Flags [%s]",
+          bittok2str(bootp_flag_values, "none", EXTRACT_16BITS(&bp->bp_flags))));
 
 Compile : True
 Fixed   : False
@@ -1577,12 +1576,9 @@ frag6_print(netdissect_options *ndo, register const u_char *bp, register const u
 	ip6 = (cons...
 
 Extracted patch:
-// infill location
-if (sizeof(struct ip6_frag) > sizeof(uint16_t)) {
-    ND_TCHECK(dp->ip6f_offlg & 0xFFFF);
-} else {
-    ND_TCHECK(dp->ip6f_offlg);
-}
+// fixed hunk
+ND_TCHECK((uint16_t)(bp + sizeof(struct ip6_frag)) < (uint8_t*)ndo->ndo_buf &&
+          (long)(bp + sizeof(struct ip6_frag) + EXTRACT_16BITS(&dp->ip6f_offlg) & IP6F_OFF_MASK) <= (long)(ndo->ndo_buf + ndo->ndo_buflen));
 
 Compile : True
 Fixed   : False
@@ -1606,7 +1602,21 @@ isis_print_id(const uint8_t *cp, int id_len)
         snprintf(pos, sizeof(id)...
 
 Extracted patch:
-for (i = 1; i <= SYSTEM_ID_LEN && cp < (const uint8_t *)cp + id_len; i++) {
+size_t len;
+for (i = 1; i <= SYSTEM_ID_LEN; i++) {
+    // calculate the new string length
+    len = sizeof(id) - (pos - id) - 3; // assuming space for format specifier and '\0'
+    if (len > 0) {
+        snprintf(pos, len, "%02x", *cp++);
+        pos += strlen(pos);
+	if (i == 2 || i == 4)
+	    *pos++ = '.';
+    } else {
+        // handle buffer overflow situation gracefully or abort execution
+        fprintf(stderr, "Buffer overflow in isis_print_id()\n");
+        exit(EXIT_FAILURE);
+    }
+}
 
 Compile : True
 Fixed   : False
@@ -1627,7 +1637,10 @@ isis_print_is_reach_subtlv(netdissect_options *ndo,
         u_int te_class,priority_level...
 
 Extracted patch:
-ND_TCHECK2(*tptr, MIN(subl, 4));
+// fixed hunk
+if (subl >= 4 && subl <= 8) { // ensure subl is between 4 and 8
+    ND_TCHECK2(*tptr, 4);
+}
 
 Compile : True
 Fixed   : False
@@ -1664,13 +1677,18 @@ name_len(netdissect_options *ndo,
     c = *s;
     if ((c & 0xC0) == 0xC0)
 	return(2);
-    while (*s && s < maxbuf) {
-	if (s >= maxbuf)
-	    return(-1);	/* name goes past the end of the buffer */
+    while (c != 0 && s + (c + 1) <= maxbuf) {
 	ND_TCHECK2(*s, 1);
 	s += (*s) + 1;
+	if ((c & 0xC0) == 0xC0)
+	    return(2);  // UTF-8 error handling if multi-byte character found
+	c = *s;
     }
-    return(PTR_DIFF(s, s0) + 1);
+    if (s < maxbuf) {  // check if we reached the end of the string before the buffer limit
+        return(PTR_DIFF(s, s0) + 1);
+    } else {  // name goes past the end of the buffer
+        return(-1);
+    }
 
 trunc:
     return(-1);	/* name goes past the end of the buffer */
@@ -1699,16 +1717,20 @@ handle_mlppp(netdissect_options *ndo,
 
 Extracted patch:
 static void
-handle_mlppp(netdissect_options *ndo,
-             const u_char *p, int length)
+handle_mlppp(netdissect_options *ndo, const u_char *p, int length)
 {
     if (!ndo->ndo_eflag)
         ND_PRINT((ndo, "MLPPP, "));
 
+    if (length < 3) {
+        // Error handling for too short packets
+        return;
+    }
+
     ND_PRINT((ndo, "seq 0x%03x, Flags [%s], length %u",
-           (EXTRACT_16BITS(p))&0x0fff,
-           bittok2str(ppp_ml_flag_values, *p & 0xc0),
-           length));
+           EXTRACT_16BITS(p + 1), /* Adjust the offset to handle packet structure */
+           bittok2str(ppp_ml_flag_values, "none", *p & 0xc0),
+           length - sizeof(u_short)));/* Adjust the length for the extracted sequence number*/
 }
 
 Compile : True
@@ -1733,101 +1755,16 @@ mobility_opt_print(netdissect_options *ndo,
 		if (bp[i] == IP6MOPT_PAD1...
 
 Extracted patch:
-static int
-mobility_opt_print(netdissect_options *ndo,
-                   const u_char *bp, const unsigned len)
-{
-	unsigned i, optlen;
-
-	for (i = 0; i < len; i += optlen) {
-		ND_TCHECK(bp[i]);
-		if (bp[i] == IP6MOPT_PAD1)
-			optlen = 1;
-		else {
-			if (i + 1 < len) {
-				ND_TCHECK(bp[i + 1]);
-				optlen = bp[i + 1] + 2;
-			}
-			else
-				goto trunc;
-		}
-		if (i + optlen > len)
-			goto trunc;
-		ND_TCHECK(bp[i + optlen]);
-
-		switch (bp[i]) {
-		case IP6MOPT_PAD1:
-			ND_PRINT((ndo, "(pad1)"));
-			break;
-		case IP6MOPT_PADN:
-			if (len - i < IP6MOPT_MINLEN) {
-				ND_PRINT((ndo, "(padn: trunc)"));
-				goto trunc;
-			}
-			ND_PRINT((ndo, "(padn)"));
-			break;
-		case IP6MOPT_REFRESH:
-			if (len - i < IP6MOPT_REFRESH_MINLEN) {
-				ND_PRINT((ndo, "(refresh: trunc)"));
-				goto trunc;
-			}
-			/* units of 4 secs */
-			if (i + 2 < len) {
-				ND_TCHECK_16BITS(&bp[i+2]);
-				ND_PRINT((ndo, "(refresh: %u)",
-					EXTRACT_16BITS(&bp[i+2]) << 2));
-			} else {
-				ND_PRINT((ndo, "(refresh: trunc)"));
-				goto trunc;
-			}
-			break;
-		case IP6MOPT_ALTCOA:
-			if (len - i < IP6MOPT_ALTCOA_MINLEN) {
-				ND_PRINT((ndo, "(altcoa: trunc)"));
-				goto trunc;
-			}
-			if (i + 2 < len) {
-				ND_PRINT((ndo, "(alt-CoA: %s)", ip6addr_string(ndo, &bp[i+2])));
-			} else {
-				ND_PRINT((ndo, "(altcoa: trunc)"));
-				goto trunc;
-			}
-			break;
-		case IP6MOPT_NONCEID:
-			if (len - i < IP6MOPT_NONCEID_MINLEN) {
-				ND_PRINT((ndo, "(ni: trunc)"));
-				goto trunc;
-			}
-			if (i + 4 < len) {
-				ND_PRINT((ndo, "(ni: ho=0x%04x co=0x%04x)",
-					EXTRACT_16BITS(&bp[i+2]),
-					EXTRACT_16BITS(&bp[i+4])));
-			} else {
-				ND_PRINT((ndo, "(ni: trunc)"));
-				goto trunc;
-			}
-			break;
-		case IP6MOPT_AUTH:
-			if (len - i < IP6MOPT_AUTH_MINLEN) {
-				ND_PRINT((ndo, "(auth: trunc)"));
-				goto trunc;
-			}
-			ND_PRINT((ndo, "(auth)"));
-			break;
-		default:
-			if (len - i < IP6MOPT_MINLEN) {
-				ND_PRINT((ndo, "(sopt_type %u: trunc)", bp[i]));
-				goto trunc;
-			}
-			ND_PRINT((ndo, "(type-0x%02x: len=%u)", bp[i], bp[i + 1]));
-			break;
-		}
+case IP6MOPT_NONCEID:
+	if (len - i < IP6MOPT_NONCEID_MINLEN) {
+		ND_PRINT((ndo, "(ni: trunc)"));
+		goto trunc;
 	}
-	return 0;
-
-trunc:
-	return 1;
-}
+	char str[10]; // Assuming that ho and co are 4-digit hexadecimal numbers. Adjust the size based on actual requirements.
+	snprintf(str, sizeof(str), "(ni: ho=0x%04x co=0x%04x)",
+		EXTRACT_16BITS(&bp[i+2]), EXTRACT_16BITS(&bp[i+4]));
+	ND_PRINT((ndo, "%s", str));
+	break;
 
 Compile : True
 Fixed   : False
@@ -1853,16 +1790,10 @@ ieee802_15_4_if_print(netdissect_options *ndo,
 	if (...
 
 Extracted patch:
-// Corrected hunk
-panid = EXTRACT_LE_16BITS(p);
-if (caplen >= 4) {
-    ND_PRINT((ndo,"%04x:%04x ", panid, EXTRACT_LE_16BITS(p + 2)));
-} else {
-    ND_PRINT((ndo,"[|802.15.4]"));
-}
+ND_PRINT((ndo,"%04x:%04x ", panid, EXTRACT_LE_16BITS(p)));
 
 Compile : True
-Fixed   : False
+Fixed   : True
 ============================================================
 [39/52] the-tcpdump-group___tcpdump@88b2dac837e81cf56dce05e6e7b5989332c0092d
 SHA: 88b2dac837e81cf56dce05e6e7b5989332c0092d
@@ -1882,45 +1813,13 @@ ospf6_decode_v3(netdissect_options *ndo,
 	r...
 
 Extracted patch:
-case OSPF_TYPE_HELLO: {
-    register const struct hello6 *hellop = (const struct hello6 *)((const uint8_t *)op + OSPF6HDR_LEN);
-
-    ND_PRINT((ndo, "
-Options [%s]",
-              bittok2str(ospf6_option_values, "none",
-              EXTRACT_32BITS(&hellop->hello_options))));
-
-    ND_TCHECK(hellop->hello_deadint);
-    ND_PRINT((ndo, "
-  Hello Timer %us, Dead Timer %us, Interface-ID %s, Priority %u",
-              EXTRACT_16BITS(&hellop->hello_helloint),
-              EXTRACT_16BITS(&hellop->hello_deadint),
-              ipaddr_string(ndo, &hellop->hello_ifid),
-              hellop->hello_priority));
-
-    ND_TCHECK(hellop->hello_dr);
-    if (EXTRACT_32BITS(&hellop->hello_dr) != 0)
-        ND_PRINT((ndo, "
-  Designated Router %s",
-                  ipaddr_string(ndo, &hellop->hello_dr)));
-    ND_TCHECK(hellop->hello_bdr);
-    if (EXTRACT_32BITS(&hellop->hello_bdr) != 0)
-        ND_PRINT((ndo, ", Backup Designated Router %s",
-                  ipaddr_string(ndo, &hellop->hello_bdr)));
-
-    if (ndo->ndo_vflag > 1) {
-        ND_PRINT((ndo, "
-  Neighbor List:"));
-        ap = hellop->hello_neighbor;
-        while ((const u_char *)ap < dataend && (u_char *)ap <= (dataend - sizeof(rtrid_t))) { // added bounds check
-            ND_TCHECK(*ap);
-            ND_PRINT((ndo, "
-    %s", ipaddr_string(ndo, ap)));
-            ++ap;
-        }
-    }
-    break;  /* HELLO */
-}
+// commit message: Fix buffer overflow by adding bounds check
+		ND_PRINT((ndo, "\n\tOptions [%s",
+		          bittok2str(ospf6_option_values, "none",
+		          EXTRACT_32BITS(&hellop->hello_options))));
+		char options_str[MAX_OPTIONS_LENGTH]; // Add a buffer to store the options string
+		strncat(options_str, bittok2str(ospf6_option_values, "none", EXTRACT_32BITS(&hellop->hello_options)), MAX_OPTIONS_LENGTH - 1); // Copy the options string into the buffer with bounds check
+		ND_PRINT((ndo, "%s]", options_str)); // Print the options string from the buffer
 
 Compile : True
 Fixed   : False
@@ -1946,10 +1845,8 @@ telnet_parse(netdissect_options *ndo, const u_char *sp, u_int length, int print)
 		ND...
 
 Extracted patch:
-// vulnerable hunk
-	if (p <= sp) {
-		goto pktend;
-	}
+if (p + strlen(telcmds[x]) + strlen(STR_OR_ID(c, cmds)) + 2 > sp)
+    break;
 
 Compile : True
 Fixed   : False
@@ -1970,7 +1867,14 @@ isis_print_extd_ip_reach(netdissect_options *ndo,
     uint8_t prefix[sizeof(struct in6_addr)]; /* sha...
 
 Extracted patch:
-status_byte = *(uint8_t *)tptr++;
+if (tptr + 1 <= end_of_tlv) { // check if the next byte exists
+    if (!ND_TTEST2(*tptr, 1)) /* fetch status & prefix_len byte */
+        return (0);
+    ...
+} else {
+    ND_PRINT((ndo, "%sIPv6 prefix: bad length", ident));
+    return (0);
+}
 
 Compile : True
 Fixed   : False
@@ -1993,12 +1897,8 @@ lldp_mgmt_addr_tlv_print(netdissect_options *ndo,
     cha...
 
 Extracted patch:
-if (tlen >= oid_len) {
-        oid_len = *tptr;
-        ND_PRINT((ndo, "
-          OID length %u", oid_len));
-        safeputs(ndo, tptr + 1, oid_len);
-    }
+// fixed hunk
+if (tlen < oid_len + (oid_len > 0 ? 1 : 0)) {
 
 Compile : True
 Fixed   : False
@@ -2024,8 +1924,39 @@ ieee802_15_4_if_print(netdissect_options *ndo,
 	if (...
 
 Extracted patch:
-// Corrected hunk
-			ND_PRINT((ndo,"%04x:%s ", panid, le64addr_string(ndo, p + 2, caplen - (p - h->data))));
+commit: Fix potential buffer overflow in ieee802_15_4_if_print function
+
+---
+ src/ieee802_15_4.h
+-----
+ diff --git a/src/ieee802_15_4.h b/src/ieee802_15_4.h
+index ee70b36..2c759a7 100644
+--- a/src/ieee802_15_4.h
++++ b/src/ieee802_15_4.h
+@@ -43,6 +43,7 @@ void le64addr_print(netdissect_options *ndo, const uint8_t *ptr, int len);
+
+ ---
+ src/ieee802_15_4_if.c
+-----
+ diff --git a/src/ieee802_15_4_if.c b/src/ieee802_15_4_if.c
+index 7b9c436..9fdfd3f 100644
+--- a/src/ieee802_15_4_if.c
++++ b/src/ieee802_15_4_if.c
+@@ -287,10 +287,13 @@ u_int ieee802_15_4_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h, const u_char *p)
+         if (caplen < 2) {
+                 ND_PRINT((ndo, "[|802.15.4]"));
+                 return hdrlen;
+         }
+-        panid = EXTRACT_LE_16BITS(p);
++        uint16_t src_panid = EXTRACT_LE_16BITS(p);
++        uint32_t len64 = (hdrlen + 10) - caplen; // Max length for source addr (in long addressing mode)
++        if (FC_ADDRESSING_MODE(fc) == FC_ADDRESSING_MODE_LONG && src_panid != panid && len64 < 8) {
++            ND_PRINT((ndo,"[|802.15.4]"));
++            return hdrlen; // Return early to avoid potential buffer overflow
+         }
+         p += 2;
+         caplen -= 2;
+         hdrlen += 2;
 
 Compile : True
 Fixed   : False
@@ -2050,26 +1981,11 @@ ubik_print(netdissect_options *ndo,
 	 * gleaned from ubik/ubik_int...
 
 Extracted patch:
-static void
-ubik_print(netdissect_options *ndo,
-           register const u_char *bp)
-{
-    int ubik_op;
-    int32_t temp;
-
-    // ... (rest of the function remains the same)
-
-    temp = EXTRACT_32BITS(bp);
-
-    if ((temp & 0x80000000) == 0) {
-        bp += sizeof(int32_t);
-    } else {
-        ND_PRINT((ndo, " [|ubik]"));
-        return;
-    }
-
-    // ... (rest of the function remains the same)
+temp = EXTRACT_32BITS(bp + sizeof(struct rx_header));
+if (sizeof(int32_t) + (ubik_op == 10000 ? 4 : 0) > ndo->ndo_buf_left) {
+    // Handle out-of-bounds error
 }
+bp += sizeof(int32_t);
 
 Compile : True
 Fixed   : False
@@ -2100,23 +2016,20 @@ mobility_opt_print(netdissect_options *ndo,
 	unsigned i, optlen;
 
 	for (i = 0; i < len; i += optlen) {
-		if (i + 1 >= len) {
-			goto trunc;
-		}
 		ND_TCHECK(bp[i]);
 		if (bp[i] == IP6MOPT_PAD1)
 			optlen = 1;
 		else {
-			if (i + 2 < len) {
+			if (i + 1 < len) {
 				ND_TCHECK(bp[i + 1]);
-				optlen = bp[i + 1] + 2;
+				optlen = bp[i + 1] + 2; // optlen is now calculated correctly
 			}
 			else
 				goto trunc;
 		}
 		if (i + optlen > len)
 			goto trunc;
-		ND_TCHECK(bp[i + optlen - 1]);
+		ND_TCHECK(bp[i + optlen]);
 
 		switch (bp[i]) {
 		case IP6MOPT_PAD1:
@@ -2129,45 +2042,34 @@ mobility_opt_print(netdissect_options *ndo,
 			}
 			ND_PRINT((ndo, "(padn)"));
 			break;
-		case IP6MOPT_REFRESH:
+		case IP6MOPT_REFRESH: { // Use snprintf to safely print the refresh value
 			if (len - i < IP6MOPT_REFRESH_MINLEN) {
 				ND_PRINT((ndo, "(refresh: trunc)"));
 				goto trunc;
 			}
-			/* units of 4 secs */
-			if (i + 2 < len) {
-				ND_PRINT((ndo, "(refresh: %u)",
-					EXTRACT_16BITS(&bp[i+2]) << 2));
-			} else {
-				ND_PRINT((ndo, "(refresh: trunc)"));
-				goto trunc;
-			}
+			char buffer[9]; // Allocate enough space for the formatted string
+			snprintf(buffer, sizeof(buffer), "(refresh: %u)",
+				EXTRACT_16BITS(&bp[i+2]) << 2);
+			ND_PRINT((ndo, "%s", buffer));
 			break;
+		}
 		case IP6MOPT_ALTCOA:
 			if (len - i < IP6MOPT_ALTCOA_MINLEN) {
 				ND_PRINT((ndo, "(altcoa: trunc)"));
 				goto trunc;
 			}
-			if (i + 2 < len) {
-				ND_PRINT((ndo, "(alt-CoA: %s)", ip6addr_string(ndo, &bp[i+2])));
-			} else {
-				ND_PRINT((ndo, "(altcoa: trunc)"));
-				goto trunc;
-			}
+			ND_PRINT((ndo, "(alt-CoA: %s)", ip6addr_string(ndo, &bp[i+2])));
 			break;
 		case IP6MOPT_NONCEID:
 			if (len - i < IP6MOPT_NONCEID_MINLEN) {
 				ND_PRINT((ndo, "(ni: trunc)"));
 				goto trunc;
 			}
-			if (i + 4 < len) {
-				ND_PRINT((ndo, "(ni: ho=0x%04x co=0x%04x)",
-					EXTRACT_16BITS(&bp[i+2]),
-					EXTRACT_16BITS(&bp[i+4])));
-			} else {
-				ND_PRINT((ndo, "(ni: trunc)"));
-				goto trunc;
-			}
+			char buffer[18]; // Allocate enough space for the formatted string
+			snprintf(buffer, sizeof(buffer), "(ni: ho=0x%04x co=0x%04x)",
+				EXTRACT_16BITS(&bp[i+2]),
+				EXTRACT_16BITS(&bp[i+4]));
+			ND_PRINT((ndo, "%s", buffer));
 			break;
 		case IP6MOPT_AUTH:
 			if (len - i < IP6MOPT_AUTH_MINLEN) {
@@ -2181,12 +2083,9 @@ mobility_opt_print(netdissect_options *ndo,
 				ND_PRINT((ndo, "(sopt_type %u: trunc)", bp[i]));
 				goto trunc;
 			}
-			if (i + 1 < len) {
-				ND_PRINT((ndo, "(type-0x%02x: len=%u)", bp[i], bp[i + 1]));
-			} else {
-				ND_PRINT((ndo, "(type-0x%02x: trunc)", bp[i]));
-				goto trunc;
-			}
+			char buffer[10]; // Allocate enough space for the formatted string
+			snprintf(buffer, sizeof(buffer), "(type-0x%02x: len=%u)", bp[i], bp[i + 1]);
+			ND_PRINT((ndo, "%s", buffer));
 			break;
 		}
 	}
@@ -2218,7 +2117,8 @@ pktap_if_print(netdissect_options *ndo,
 	const ...
 
 Extracted patch:
-hdrlen = MIN(hdrlen, sizeof(pktap_header_t));
+// commit message: Fix PKTAP_HEADER_LEN check to prevent potential heap overflow
+uint32_t hdrlen = min(EXTRACT_LE_32BITS(&hdr->pkt_len), sizeof(pktap_header_t));
 
 Compile : True
 Fixed   : False
@@ -2243,13 +2143,11 @@ lldp_private_8023_print(netdissect_options *ndo,
     subtype...
 
 Extracted patch:
-case LLDP_PRIVATE_8023_SUBTYPE_MTU:
-    if (tlv_len >= 5) { // Check if there are at least 5 bytes left in the buffer
-        ND_PRINT((ndo, "MTU size %u", EXTRACT_16BITS(tptr + 4)));
-    } else {
-        hexdump = TRUE;
-    }
-    break;
+if (tlv_len >= 6) {
+    ND_PRINT((ndo, "\n\t    MTU size %u", EXTRACT_16BITS(tptr + 4)));
+} else {
+    return hexdump;
+}
 
 Compile : True
 Fixed   : False
@@ -2276,11 +2174,29 @@ isakmp_rfc3948_print(netdissect_options *ndo,
 	if(lengt...
 
 Extracted patch:
-if(bp[0]==0 && bp[1]==0 && bp[2]==0 && bp[3]==0) {
-    ND_PRINT((ndo, "NONESP-encap: "));
-    isakmp_print(ndo, bp+4, MIN(length-4, 4), bp2);
-    return;
+// commit message: Fixed potential buffer overflow by allocating a temporary buffer for ESP packets parsing
+char temp_buffer[MAX_ESP_PACKET_SIZE]; /* Adjust MAX_ESP_PACKET_SIZE as per your requirement */
+int advance;
+
+ND_PRINT((ndo, "UDP-encap: "));
+
+// Copy the ESP packet into the temporary buffer to prevent buffer overflow
+if (length >= sizeof(temp_buffer)) {
+    ND_PRINT((ndo, "[|isakmp]"));
+    return; // Return if the packet is too large for the temporary buffer
 }
+memcpy(temp_buffer, bp, length);
+
+advance = esp_print(ndo, temp_buffer, length, bp2, &enh, &padlen);
+if (advance <= 0)
+    return;
+
+bp += advance;
+length -= advance + padlen;
+nh = enh & 0xff;
+
+ip_print_inner(ndo, bp, length, nh, bp2);
+return;
 
 Compile : True
 Fixed   : False
@@ -2300,37 +2216,14 @@ int URI_FUNC(ComposeQueryEngine)(URI_CHAR * dest,
 	UriBool firstItem = U...
 
 Extracted patch:
-int URI_FUNC(ComposeQueryEngine)(URI_CHAR * dest,
-		const URI_TYPE(QueryList) * queryList,
-		int maxChars, int * charsWritten, int * charsRequired,
-		UriBool spaceToPlus, UriBool normalizeBreaks) {
-    // ...
-    
-    while (queryList != NULL) {
-        // ...
-        
-        if ((write - dest) + ampersandLen + keyRequiredChars > maxChars) {
-            return URI_ERROR_OUTPUT_TOO_LARGE;
-        }
-        
-        // Copy key
-        if (firstItem == URI_TRUE) {
-            firstItem = URI_FALSE;
-        } else {
-            write[0] = _UT('&');
-            write++;
-        }
-        afterKey = URI_FUNC(EscapeEx)(key, key + keyLen, write, spaceToPlus, normalizeBreaks);
-        int remainingChars = maxChars - (write - dest) - 1; // subtract 1 for the '&' character
-        if (remainingChars < ampersandLen + keyRequiredChars) {
-            return URI_ERROR_OUTPUT_TOO_LARGE;
-        }
-        write += (afterKey - write);
-        
-        // ...
+while (queryList != NULL) {
+    // ... existing code ...
+
+    if ((write - dest) + ampersandLen + keyRequiredChars + ((value == NULL) ? 0 : 1 + valueRequiredChars) > maxChars) {
+        return URI_ERROR_OUTPUT_TOO_LARGE;
     }
-    
-    // ...
+
+    // ... existing code for copying key and value ...
 }
 
 Compile : True
@@ -2352,10 +2245,19 @@ void APar_ExtractDetails(FILE *isofile, uint8_t optional_output) {
   if (mvhdAtom != NULL) ...
 
 Extracted patch:
-void APar_ExtractTrackDetails(char* uint32_buffer, FILE* isofile, Trackage* track, TrackInfo* track_info) {
-    // ...
-    uint32_buffer[4] = (char*)&track_info->track_type;
-    // ...
+#include <stdlib.h> // For malloc/calloc
+
+void APar_ExtractDetails(FILE *isofile, uint8_t optional_output) {
+  char *uint32_buffer = (char *)malloc(5); // Allocate memory dynamically
+  if (!uint32_buffer) {
+    fprintf(stderr, "Memory allocation failure\n");
+    exit(EXIT_FAILURE);
+  }
+
+  // Rest of the code remains the same...
+
+  // Don't forget to free the memory when it's no longer needed:
+  free(uint32_buffer);
 }
 
 Compile : True
@@ -2376,13 +2278,19 @@ void CClient::EchoMessage(const CMessage& Message) {
             (pClient != this && (m_pNetwork-...
 
 Extracted patch:
+bool IsValidChanName(const std::string& str) {
+    // Regular expression pattern to match valid chan names
+    static const std::regex pattern("^[[:alnum:]#&]+$");
+    return std::regex_match(str, pattern);
+}
+
 void CClient::EchoMessage(const CMessage& Message) {
-    CMessage EchoedMessage = Message; // No need for bounds checking here, as we're just assigning a const reference.
+    CMessage EchoedMessage = Message;
     for (CClient* pClient : GetClients()) {
-        if (pClient->HasEchoMessage() || 
-            (pClient != this && (m_pNetwork->IsChan(Message.GetParam(0)) || 
-                                 pClient->HasSelfMessage()))) {
-            EchoedMessage.SetNick(GetNickMask()); // This line is safe, as we're not copying data from one buffer to another.
+        if (pClient != this && IsValidChanName(Message.GetParam(0)) &&
+            m_pNetwork->IsChan(Message.GetParam(0)) ||
+            (pClient->HasSelfMessage())) {
+            EchoedMessage.SetNick(GetNickMask());
             pClient->PutClient(EchoedMessage);
         }
     }
@@ -2409,52 +2317,8 @@ bool CClient::OnTextMessage(CTextMessage& Message) {
         Message....
 
 Extracted patch:
-bool CClient::OnTextMessage(CTextMessage& Message) {
-    CString sTargets = Message.GetTarget();
-
-    VCString vTargets;
-    sTargets.Split(",", vTargets, false);
-
-    for (CString& sTarget : vTargets) {
-        Message.SetTarget(sTarget);
-        if (m_pNetwork && m_pNetwork->FindChan(sTarget)) {
-            Message.SetChan(m_pNetwork->FindChan(sTarget));
-        }
-
-        if (sTarget.TrimPrefix(m_pUser->GetStatusPrefix())) {
-            if (sTarget.Equals("status")) {
-                CString sMsg = Message.GetText();
-                UserCommand(sMsg);
-            } else {
-                CALLMOD(sTarget, this, m_pUser, m_pNetwork,
-                        OnModCommand(Message.GetText()));
-            }
-            continue;
-        }
-
-        bool bContinue = false;
-        NETWORKMODULECALL(OnUserTextMessage(Message), m_pUser, m_pNetwork, this,
-                          &bContinue);
-        if (bContinue) continue;
-
-        if (!GetIRCSock()) {
-            // Some lagmeters do a PRIVMSG to their own nick, ignore those.
-            if (!sTarget.Equals(m_sNick))
-                PutStatus(
-                    t_f("Your message to {1} got lost, you are not connected "
-                        "to IRC!")(Message.GetTarget()));
-            continue;
-        }
-
-        if (m_pNetwork) {
-            AddBuffer(Message);
-            EchoMessage(Message);
-            PutIRC(Message.ToString(CMessage::ExcludePrefix |
-                                    CMessage::ExcludeTags));
-        }
-    }
-
-    return true;
+if (m_pNetwork && m_pNetwork->FindChan(sTarget)) {
+    Message.SetChan(m_pNetwork->FindChan(sTarget));
 }
 
 Compile : True
@@ -2464,4 +2328,4 @@ OVERALL RESULTS
 ============================================================
 Total cases   : 52
 Compile Rate  :  52 / 52  (100.0%)
-Pass@1         :   0 / 52  (0.0%)
+Pass@5         :   2 / 52  (3.8%)

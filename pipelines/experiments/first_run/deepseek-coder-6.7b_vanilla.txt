@@ -1,0 +1,2237 @@
+ABLATION PIPELINE RUN
+============================================================
+Timestamp       : 2026-04-16 10:01:18
+Model           : deepseek-coder:6.7b
+Ablation        : vanilla
+JIN augmentation: none
+Candidates (k)  : 1
+Temperature     : 0.01
+Seed            : 42
+Ollama host     : http://100.97.159.90:11434
+JIN host        : http://100.78.242.59:8000
+Base system prompt: You are a C/CPP code program repair expert
+Total CVE cases : 52
+============================================================
+============================================================
+[1/52] ClusterLabs___libqb@1bbaa929b77113532785c408dd1b41cd0521ffc8
+SHA: 1bbaa929b77113532785c408dd1b41cd0521ffc8
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static void
+_blackbox_vlogger(int32_t target,
+		  struct qb_log_callsite *cs, struct timespec *timestamp, va_list ap)
+{
+	size_t max_size;
+	size_t actual_size;
+	uint32_t fn_size;
+	char *chunk;
+	char *msg_len_pt;
+	uint32_t...
+
+Extracted patch:
+// vulnerable hunk
+	msg_len = qb_vsnprintf_serialize(chunk, max_size, cs->format, ap);
+	if (msg_len >= max_size) {
+	    chunk = msg_len_pt + sizeof(uint32_t);  /* Reset */
+
+        // Check if the message length is within a reasonable limit. If not, truncate it.
+        if (msg_len > QB_LOG_MAX_LEN) {
+            msg_len = QB_LOG_MAX_LEN;
+        }
+	}
+
+Compile : True
+Fixed   : False
+============================================================
+[2/52] DaveGamble___cJSON@be749d7efa7c9021da746e685bd6dec79f9dd99b
+SHA: be749d7efa7c9021da746e685bd6dec79f9dd99b
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static cJSON *get_object_item(const cJSON * const object, const char * const name, const cJSON_bool case_sensitive)
+{
+    cJSON *current_element = NULL;
+
+    if ((object == NULL) || (name == NULL))
+    {
+        return N...
+
+Extracted patch:
+while  ((current_element != NULL) && (strcmp(name, current_element->string) != 0))
+
+Compile : True
+Fixed   : False
+============================================================
+[3/52] OpenIDC___cjose@7325e9a5e71e2fc0e350487ecac7d84acdf0ed5e
+SHA: 7325e9a5e71e2fc0e350487ecac7d84acdf0ed5e
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static bool _cjose_jwe_decrypt_dat_aes_gcm(cjose_jwe_t *jwe, cjose_err *err)
+{
+    EVP_CIPHER_CTX *ctx = NULL;
+
+    // make sure we have an enc header
+    json_t *enc_obj = json_object_get(jwe->hdr, CJOSE_HDR_ENC);
+    i...
+
+Extracted patch:
+// set GCM mode AAD data  (hdr_b64u) by setting "out" to NULL
+    int bytes_decrypted = 0;
+    if(EVP_DecryptUpdate(ctx, NULL, &bytes_decrypted, (unsigned char *)jwe->enc_header.b64u, jwe->enc_header.b64u_len) != 1
+       || bytes_decrypted != jwe->enc_header.b64u_len)
+    {
+       CJOSE_ERROR(err, CJOSE_ERR_CRYPTO);
+       goto _cjose_jwe_decrypt_dat_aes_gcm_fail;
+    }
+
+Compile : True
+Fixed   : False
+============================================================
+[4/52] VirusTotal___yara@4a342f01e5439b9bb901aff1c6c23c536baeeb3f
+SHA: 4a342f01e5439b9bb901aff1c6c23c536baeeb3f
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+int yr_object_array_set_item(
+    YR_OBJECT* object,
+    YR_OBJECT* item,
+    int index)
+{
+  YR_OBJECT_ARRAY* array;
+
+  int i;
+  int count;
+
+  assert(index >= 0);
+  assert(object->type == OBJECT_TYPE_ARRAY);
+
+  array = o...
+
+Extracted patch:
+int yr_object_array_set_item(YR_OBJECT* object, YR_OBJECT* item, int index) {
+  YR_OBJECT_ARRAY* array;
+  size_t count;
+
+  assert(index >= 0);
+  assert(object->type == OBJECT_TYPE_ARRAY);
+
+  array = object_as_array(object);
+
+  if (array->items == NULL) {
+    count = yr_max((size_t)64, ((size_t)(index + 1)) * 2);
+
+    array->items = (YR_ARRAY_ITEMS*) yr_malloc(
+        sizeof(YR_ARRAY_ITEMS) + count * sizeof(YR_OBJECT*));
+
+    if (array->items == NULL) {
+      return ERROR_INSUFFICIENT_MEMORY;
+    }
+
+    memset(array->items->objects, 0, count * sizeof(YR_OBJECT*));
+
+    array->items->count = (int)count;
+  } else if ((size_t)index >= array->items->count) {
+    count = array->items->count * 2;
+    array->items = (YR_ARRAY_ITEMS*) yr_realloc(
+        array->items, sizeof(YR_ARRAY_ITEMS) + count * sizeof(YR_OBJECT*));
+
+    if (array->items == NULL) {
+      return ERROR_INSUFFICIENT_MEMORY;
+    }
+
+    for (int i = array->items->count; (size_t)i < count; i++) {
+      array->items->objects[i] = NULL;
+    }
+
+    array->items->count = (int)count;
+  }
+
+  item->parent = object;
+  array->items->objects[index] = item;
+
+  return ERROR_SUCCESS;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[5/52] Yeraze___ytnef@3cb0f914d6427073f262e1b2b5fd973e3043cdf7
+SHA: 3cb0f914d6427073f262e1b2b5fd973e3043cdf7
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+int TNEFParse(TNEFStruct *TNEF) {
+  WORD key;
+  DWORD type;
+  DWORD size;
+  DWORD signature;
+  BYTE *data;
+  WORD checksum, header_checksum;
+  int i;
+
+  if (TNEF->IO.ReadProc == NULL) {
+    printf("ERROR: Setup incorrect...
+
+Extracted patch:
+data = malloc(size * sizeof(BYTE));
+    if (data == NULL) {
+        printf("ERROR: Unable to allocate memory for data.\n");
+        if (TNEF->IO.CloseProc != NULL) {
+            TNEF->IO.CloseProc(&TNEF->IO);
+        }
+        return YTNEF_CANNOT_ALLOCATE_MEMORY;  // Return a new error code indicating failure to allocate memory
+    }
+
+Compile : True
+Fixed   : False
+============================================================
+[6/52] curl___curl@1890d59905414ab84a35892b2e45833654aa5c13
+SHA: 1890d59905414ab84a35892b2e45833654aa5c13
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+void ourWriteOut(CURL *curl, struct OutStruct *outs, const char *writeinfo)
+{
+  FILE *stream = stdout;
+  const char *ptr = writeinfo;
+  char *stringp = NULL;
+  long longinfo;
+  double doubleinfo;
+
+  while(ptr && *ptr) {
+...
+
+Extracted patch:
+void ourWriteOut(CURL *curl, struct OutStruct *outs, const char *writeinfo)
+{
+  FILE *stream = stdout;
+  const char *ptr = writeinfo;
+  char *stringp = NULL;
+  long longinfo;
+  double doubleinfo;
+
+  while (ptr && *ptr) {
+    if ('%' == *ptr) {
+      // ... your code here ...
+      
+      else if('{' == ptr[1]) {
+        bool match = FALSE;
+        char *end = strchr(ptr, '}');
+        // ... your code here ...
+        
+        if (!match) {
+          fprintf(stderr, "curl: unknown --write-out variable: '%s'\n", ptr);
+        }
+        *end = 0;  /* zero terminate */
+        // ... your code here ...
+      }
+      
+      else {
+        // ... your code here ...
+      }
+    }
+    
+    else if('\'' == *ptr) {
+      switch(ptr[1]) {
+        case 'r':
+          fputc('\r', stream);
+          break;
+        case 'n':
+          fputc('\n', stream);
+          break;
+        case 't':
+          fputc('\t', stream);
+          break;
+        default:
+          fputc(*ptr, stream);
+          fputc(ptr[1], stream);
+          break;
+      }
+      ptr += 2;
+    }
+    
+    else {
+      fputc(*ptr, stream);
+      ptr++;
+    }
+  }
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[7/52] dlundquist___sniproxy@f8d9a433fe22ab2fa15c00179048ab02ae23d583
+SHA: f8d9a433fe22ab2fa15c00179048ab02ae23d583
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+struct Address *
+new_address(const char *hostname_or_ip) {
+    union {
+        struct sockaddr a;
+        struct sockaddr_in in;
+        struct sockaddr_in6 in6;
+        struct sockaddr_un un;
+        struct sockaddr_sto...
+
+Extracted patch:
+The code you provided seems to be a part of a larger program and it's not clear what exactly is causing the issue. However, I can see that there are some issues with memory management in your `new_address` function. 
+
+1. You allocate memory for `struct Address` using `malloc()` but you don't free this memory when you no longer need it. This could lead to a memory leak.
+2. In the case where you return an address from `new_address_sa(&s.a, offsetof(struct sockaddr_un, sun_path) + strlen(s.un.sun_path) + 1);`, you should free this memory when it's no longer needed.
+3. In the case where you return an address from `new_address(ip_buf);`, you should ensure that this memory is freed when it's no longer needed.
+4. You allocate memory for `struct Address` using `malloc()` but you don't check if the allocation was successful. If `malloc()` fails, it returns a null pointer which could lead to a crash or undefined behavior later on.
+5. In your code, there are several places where you use `strncpy()` without checking whether the destination buffer is large enough. This can cause buffer overflows if the source string is larger than the size of the destination buffer.
+6. You should check the return value of `inet_pton()` to ensure that it was able to parse the IP address correctly. If not, you might want to handle this error case as well.
+7. In your code, there are several places where you use `atoi()` without checking whether the string is a valid integer. This can cause undefined behavior if the string does not represent a valid integer.
+8. You should check the return value of `strrchr()` to ensure that it found the ':' character in the string correctly. If not, you might want to handle this error case as well.
+9. In your code, there are several places where you use `strcmp()` without checking whether the strings match exactly. This can cause undefined behavior if the strings do not match.
+10. You should check the return value of `valid_hostname()` to ensure that it correctly identifies valid hostnames. If not, you might want to handle this error case as well.
+
+To fix these issues, you would need to add appropriate checks and free memory when no longer needed. However, without more context or a complete codebase, I can't provide specific fixes for your issue. Please provide more information if the above points are not applicable to your situation.
+
+Compile : False
+Fixed   : False
+============================================================
+[8/52] jqlang___jq@71c2ab509a8628dbbad4bc7b3f98a64aa90d3297
+SHA: 71c2ab509a8628dbbad4bc7b3f98a64aa90d3297
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static const char* jvp_literal_number_literal(jv n) {
+  assert(JVP_HAS_FLAGS(n, JVP_FLAGS_NUMBER_LITERAL));
+  decNumber *pdec = jvp_dec_number_ptr(n);
+  jvp_literal_number* plit = jvp_literal_number_ptr(n);
+
+  if (decNum...
+
+Extracted patch:
+int len = jvp_dec_number_ptr(n)->digits + 14;
+plit->literal_data = (char*)jv_mem_alloc(len+1); // +1 for '\0'
+
+Compile : True
+Fixed   : False
+============================================================
+[9/52] libgd___libgd@1846f48e5fcdde996e7c27a4bbac5d0aef183e4b
+SHA: 1846f48e5fcdde996e7c27a4bbac5d0aef183e4b
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+BGD_DECLARE(gdImagePtr) gdImageCreate (int sx, int sy)
+{
+	int i;
+	gdImagePtr im;
+
+	if (overflow2(sx, sy)) {
+		return NULL;
+	}
+	if (overflow2(sizeof (unsigned char *), sy)) {
+		return NULL;
+	}
+	if (overflow2(sizeof (unsig...
+
+Extracted patch:
+for (i = 0; i < sy; i++) {
+    /* Row-major ever since gd 1.3 */
+    im->pixels[i] = (unsigned char *)gdCalloc(sx, sizeof(unsigned char));
+    if (!im->pixels[i]) {
+        for (--i; i >= 0; i--) {
+            gdFree(im->pixels[i]);
+        }
+        gdFree(im->pixels);
+        gdFree(im);
+        return NULL;
+    }
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[10/52] libgd___libgd@2bb97f407c1145c850416a3bfbcc8cf124e68a19
+SHA: 2bb97f407c1145c850416a3bfbcc8cf124e68a19
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+_gd2GetHeader (gdIOCtxPtr in, int *sx, int *sy,
+               int *cs, int *vers, int *fmt, int *ncx, int *ncy,
+               t_chunk_info ** chunkIdx)
+{
+	int i;
+	int ch;
+	char id[5];
+	t_chunk_info *cidx;
+	i...
+
+Extracted patch:
+static int _gd2GetHeader(gdIOCtxPtr in, int *sx, int *sy, int *cs, int *vers, int *fmt, int *ncx, int *ncy, t_chunk_info ** chunkIdx) {
+    // ... your code here ...
+    
+    if (gd2_compressed(*fmt)) {
+        nc = (*ncx) * (*ncy);
+        GD2_DBG(printf("Reading %d chunk index entries\n", nc));
+        sidx = sizeof(t_chunk_info) * nc;
+        
+        // Allocate memory for cidx and check if it was successful
+        cidx = gdCalloc(sidx, 1);
+        if (!cidx) {
+            goto fail1;
+        }
+        
+        // ... your code here ...
+    }
+    
+    // ... your code here ...
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[11/52] libgd___libgd@58b6dde319c301b0eae27d12e2a659e067d80558
+SHA: 58b6dde319c301b0eae27d12e2a659e067d80558
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+int read_image_tga( gdIOCtx *ctx, oTga *tga )
+{
+	int pixel_block_size = (tga->bits / 8);
+	int image_block_size = (tga->width * tga->height) * pixel_block_size;
+	int* decompression_buffer = NULL;
+	unsigned char* conversio...
+
+Extracted patch:
+case TGA_TYPE_RGB_RLE:
+		/* ... existing code ... */
+		
+		while( bitmap_caret < image_block_size ) {
+			
+			if ((decompression_buffer[buffer_caret] & TGA_RLE_FLAG) == TGA_RLE_FLAG) {
+				encoded_pixels = ( ( decompression_buffer[ buffer_caret ] & ~TGA_RLE_FLAG ) + 1 );
+				buffer_caret++;
+				
+				if ((bitmap_caret + (encoded_pixels * pixel_block_size)) > image_block_size
+						|| buffer_caret + pixel_block_size > rle_size) {
+					gdFree( decompression_buffer );
+					gdFree( conversion_buffer );
+					return -1;
+				}
+				
+				for (i = 0; i < encoded_pixels; i++) {
+					memcpy(tga->bitmap + bitmap_caret, decompression_buffer + buffer_caret, pixel_block_size * sizeof(int));
+					bitmap_caret += pixel_block_size;
+				}
+				buffer_caret += pixel_block_size;
+			} else {
+				encoded_pixels = decompression<｜begin▁of▁sentence｜>_buffer[ buffer_caret ] + 1; // <-- here, s should be a 'e' to match the previous line
+				buffer_caret++;
+				
+				if ((bitmap_caret + (encoded_pixels * pixel_block_size)) > image_block_size
+						|| buffer_caret + (encoded_pixels * pixel_block_size) > rle_size) {
+					gdFree( decompression_buffer );
+					gdFree( conversion_buffer );
+					return -1;
+				}
+				
+				memcpy(tga->bitmap + bitmap_caret, decompression_buffer + buffer_caret, encoded_pixels * pixel_block_size * sizeof(int));
+				bitmap_caret += (encoded_pixels * pixel_block_size);
+				buffer_caret += (encoded_pixels * pixel_block_size);
+			}
+		}
+
+Compile : True
+Fixed   : False
+============================================================
+[12/52] libgd___libgd@69d2fd2c597ffc0c217de1238b9bf4d4bceba8e6
+SHA: 69d2fd2c597ffc0c217de1238b9bf4d4bceba8e6
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+_gd2GetHeader (gdIOCtxPtr in, int *sx, int *sy,
+               int *cs, int *vers, int *fmt, int *ncx, int *ncy,
+               t_chunk_info ** chunkIdx)
+{
+	int i;
+	int ch;
+	char id[5];
+	t_chunk_info *cidx;
+	i...
+
+Extracted patch:
+/* Calculate total number of chunks */
+int64_t nc = (int64_t)(*ncx) * (*ncy);
+
+if(overflow2(sizeof(t_chunk_info), nc)) {
+    goto fail1;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[13/52] libgd___libgd@77f619d48259383628c3ec4654b1ad578e9eb40e
+SHA: 77f619d48259383628c3ec4654b1ad578e9eb40e
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+BGD_DECLARE(void) gdImageFillToBorder (gdImagePtr im, int x, int y, int border, int color)
+{
+	int lastBorder;
+	/* Seek left */
+	int leftLimit, rightLimit;
+	int i;
+	int restoreAlphaBleding;
+
+	if (border < 0) {
+		/* Refuse...
+
+Extracted patch:
+BGD_DECLARE(void) gdImageFillToBorder  (gdImagePtr im, int x, int y, int border, int color)
+{
+    // ... rest of your code ...
+    
+	for(i = x; i >= 0 && gdImageGetPixel(im, i, y) != border; i--) {
+		gdImageSetPixel  (im, i, y, color);
+	}
+	// ... rest of your code ...
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[14/52] libuv___libuv@3530bcc30350d4a6ccf35d2f7b33e23292b9de70
+SHA: 3530bcc30350d4a6ccf35d2f7b33e23292b9de70
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+ssize_t uv__idna_toascii(const char* s, const char* se, char* d, char* de) {
+  const char* si;
+  const char* st;
+  unsigned c;
+  char* ds;
+  int rc;
+
+  ds = d;
+
+  si = s;
+  while (si < se) {
+    st = si;
+    c = uv__utf8...
+
+Extracted patch:
+ssize_t uv__idna_toascii(const char* s, const char* se, char* d, char* de) {
+  const char* si;
+  const char* st;
+  unsigned c;
+  char* ds;
+  int rc;
+
+  ds = d;
+
+  si = s;
+  while(si < se) {
+    st = si;
+    c = uv__utf8_decode1(&si, se);
+
+    if (c == UINT_MAX)
+      return UV_EINVAL;
+
+    if (c != '.' && c != 0x3002 && c != 0xFF0E && c != 0xFF61)  
+      continue;
+
+    rc = uv__idna_toascii_label(s, st, &d, de);
+
+    if (rc < 0)
+      return rc;
+
+    if (d < de)
+       *d++ = '.';
+
+    s = si;
+  }
+
+  if (s < se) {
+    rc = uv__idna<｜begin▁of▁sentence｜>_toascii_label(s, se, &d, de);
+
+    if (rc < 0)
+      return rc;
+  }
+
+  if (d >= de)
+    return UV_EINVAL;
+
+   *d++ = '\0'; // Null terminate the string.
+  return d - ds;   /* Number of bytes written. */
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[15/52] lua___lua@1f3c6f4534c6411313361697d98d1145a1f030fa
+SHA: 1f3c6f4534c6411313361697d98d1145a1f030fa
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static void singlevar (LexState *ls, expdesc *var) {
+  TString *varname = str_checkname(ls);
+  FuncState *fs = ls->fs;
+  singlevaraux(fs, varname, var, 1);
+  if (var->k == VVOID) {  /* global name? */
+    expdesc key;
+  ...
+
+Extracted patch:
+static void singlevar (LexState *ls, expdesc *var) {
+    TString *varname = str_checkname(ls);
+    
+    if (!varname) return; // If varname is NULL, exit the function immediately to prevent null pointer dereference.
+  
+    FuncState *fs = ls->fs;
+    singlevaraux(fs, varname, var, 1);
+    if (var->k == VVOID) {   /* global name? */
+        expdesc key;
+        singlevaraux(fs, ls->envn, var, 1);   /* get environment variable */
+        lua_assert(var->k != VVOID);   /* this one must exist */
+        
+        codestring(&key, varname);   /* key is variable name */
+      
+        if (&key) { // If &key is NULL, exit the function immediately to prevent null pointer dereference.
+            luaK_indexed(fs, var, &key);   /* env[varname] */
+        }
+    }
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[16/52] nginx___njs@2e00e95473861846aa8538be87db07699d9f676d
+SHA: 2e00e95473861846aa8538be87db07699d9f676d
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static njs_int_t
+njs_array_prototype_splice(njs_vm_t *vm, njs_value_t *args, njs_uint_t nargs,
+    njs_index_t unused)
+{
+    int64_t      i, n, start, length, items, delta, delete;
+    njs_int_t    ret;
+    njs_value_t  ...
+
+Extracted patch:
+The error you're seeing is a segmentation fault, which means that your program tried to access memory it wasn't allowed to (usually because of an out-of-bounds array index). The exact cause of this issue can be hard to determine without more context or the complete source code. However, based on the provided information and common practices in C programming, here are a few things you could check:
+
+1. Check for buffer overflows: If your program is dealing with strings or arrays, make sure that it doesn't exceed the bounds of these structures. In this case, there might be an issue related to `memcpy` function which copies data from source to destination without checking if the destination has enough space.
+
+2. Check for memory leaks: If you allocate memory with `njs_array_alloc()` and later free it, make sure that all allocated memory is freed properly. In this case, there might be a problem related to memory management.
+
+3. Check the return values of your functions: Functions like `njs_value_property_i64()` or `njs_array_expand()` may fail and return an error code without setting any value in the output parameter. Make sure that you handle these cases correctly, for example by checking if the function returns a valid value before using it.
+
+Without more context or specific details about your program's behavior, it's hard to provide a more precise solution. If none of this helps, please provide more information so I can give a more accurate answer.
+
+Compile : False
+Fixed   : False
+============================================================
+[17/52] nginx___njs@5c6130a2a0b4c41ab415f6b8992aa323636338b9
+SHA: 5c6130a2a0b4c41ab415f6b8992aa323636338b9
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+njs_int_t
+njs_typed_array_set_value(njs_vm_t *vm, njs_typed_array_t *array,
+    uint32_t index, njs_value_t *setval)
+{
+    double              num;
+    njs_int_t           ret;
+    njs_array_buffer_t  *buffer;
+
+    ret =...
+
+Extracted patch:
+njs_set_number(setval, num);
+
+Compile : True
+Fixed   : False
+============================================================
+[18/52] nginx___njs@81af26364c21c196dd21fb5e14c7fa9ce7debd17
+SHA: 81af26364c21c196dd21fb5e14c7fa9ce7debd17
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+njs_int_t
+njs_array_convert_to_slow_array(njs_vm_t *vm, njs_array_t *array)
+{
+    uint32_t           i, length;
+    njs_value_t        index, value;
+    njs_object_prop_t  *prop;
+
+    njs_set_array(&value, array);
+    ar...
+
+Extracted patch:
+The error you're seeing is a segmentation fault, which means that your program tried to access memory it wasn't allowed to (like a null pointer). The problematic code snippet seems to be setting up an array object from another array. 
+
+Here are some possible fixes for this issue:
+
+1. Check if the input `array` is not NULL before using it. If it can be NULL, you should add checks like `if (array == NULL) return NJS_ERROR;` at the beginning of your function.
+2. Make sure that `njs_set_array(&value, array);` doesn't cause a memory leak by freeing any resources allocated in this call before returning from the function. 
+3. Check if `njs_object_property_add(vm, &value, &index, 0)` is not leaking memory and properly handling errors. If it can return NULL, you should add checks like `if (prop == NULL) return NJS_ERROR;` after the call to this function.
+4. Make sure that `njs_uint32_to_string(&index, i);` doesn't cause a memory leak by freeing any resources allocated in this call before returning from the function. 
+5. Check if `array->start[i]` is not out of bounds for the array. You can add checks like `if (i >= length) return NJS_ERROR;` after setting up the index variable.
+6. Make sure that `njs_mp_free(vm->mem_pool, array->start);` doesn't cause a memory leak by freeing any resources allocated in this call before returning from the function. 
+7. Check if `array->object.fast_array = 0;` is not causing issues with other parts of your program that rely on the fast_array field being set to zero. If it's necessary, you should ensure that this line runs after all other code that might depend on the state of the array object.
+
+Without more context about how `njs_set_array`, `njs_object_property_add` and `njs_uint32_to_string` functions work, it's hard to provide a more specific solution. But these are some general pointers that might help you debug the issue.
+
+Compile : False
+Fixed   : False
+============================================================
+[19/52] nginx___njs@8b39afdad9a0761e0a5d4af1a762bd9a6daef572
+SHA: 8b39afdad9a0761e0a5d4af1a762bd9a6daef572
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static njs_int_t
+njs_array_prototype_sort(njs_vm_t *vm, njs_value_t *args, njs_uint_t nargs,
+    njs_index_t unused)
+{
+    int64_t                i, und, len, nlen, length;
+    njs_int_t              ret, fast_path;
+    ...
+
+Extracted patch:
+if (njs_slow_path(nslots == NULL)) {
+    return NJS_ERROR;
+}
+// ...
+p = nslots;
+end = slots + nlen;
+// ...
+if (njs_slow_path((void*)&start[i] >= end || &start[i] < p)) {
+    fast_path = 0;
+    njs_mp_free(vm->mem_pool, slots);
+    slots = NULL;
+    goto slow_path;
+}
+// ...
+p = slots + len;
+end = slots + length;
+// ...
+if (njs_slow_path((void*)&start[i] >= end || &start[i] < p)) {
+    ret = NJS_ERROR;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[20/52] nginx___njs@ab1702c7af9959366a5ddc4a75b4357d4e9ebdc1
+SHA: ab1702c7af9959366a5ddc4a75b4357d4e9ebdc1
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static njs_int_t
+njs_module_path(njs_vm_t *vm, const njs_str_t *dir, njs_module_info_t *info)
+{
+    char        *p;
+    size_t      length;
+    njs_bool_t  trail;
+    char        src[NJS_MAX_PATH + 1];
+
+    trail = 0;
+  ...
+
+Extracted patch:
+if (dir != NULL) {
+    length = dir->length;
+
+    if (njs_slow_path(length > NJS_MAX_PATH)) {
+        return NJS_ERROR;
+    }
+
+    trail = (dir->start[dir->length - 1] != '/');
+
+    if (trail) {
+        length++;
+    }
+
+    p = &src[0];
+    njs_cpymem(p, dir->start, NJS_MIN(length, NJS_MAX_PATH)); // limit the number of characters copied to NJS_MAX_PATH
+    
+    if (trail) {
+        *p++ = '/';
+    }
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[21/52] nginx___njs@d457c9545e7e71ebb5c0479eb16b9d33175855e2
+SHA: d457c9545e7e71ebb5c0479eb16b9d33175855e2
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static njs_jump_off_t
+njs_vmcode_typeof(njs_vm_t *vm, njs_value_t *value, njs_value_t *invld)
+{
+    /* ECMAScript 5.1: null, array and regexp are objects. */
+
+    static const njs_value_t  *types[NJS_VALUE_TYPE_MAX] = {
+...
+
+Extracted patch:
+The error you're seeing is a segmentation fault, which means that your program tried to access memory it wasn't allowed to (like an address of `0x000000000000`). 
+
+Looking at the code snippet provided, there are two potential issues:
+1. The array `types` is not large enough to handle all possible value types. It only has room for up to `NJS_VALUE_TYPE_MAX = 18` elements, but it seems like you're trying to access an element at index `value->type` which could be larger than this if the actual type of `*value` is unknown or out of range.
+2. The function `njs_vmcode_typeof()` returns a size of `sizeof(njs_vmcode_2addr_t)`, but it doesn't seem to do anything with that return value. If this should be used as the jump offset for some kind of interpreter or switch-case statement, you need to ensure that the returned value is within a valid range for these instructions.
+
+Here are two potential fixes:
+1. Make sure `value->type` is less than `NJS_VALUE_TYPE_MAX` and nonnegative. You might want to add some checks at the beginning of your function to handle invalid inputs gracefully, like returning an error or a default value.
+2. If you're using the return value as a jump offset, make sure it points within valid memory space where the interpreter instructions are located. This would require more context about how `njs_vmcode_interpreter()` is implemented. 
+
+Without these details, I can only provide general advice: always check inputs and handle errors properly in your code to avoid segmentation faults.
+
+Compile : False
+Fixed   : False
+============================================================
+[22/52] nginx___njs@f65981b0b8fcf02d69a40bc934803c25c9f607ab
+SHA: f65981b0b8fcf02d69a40bc934803c25c9f607ab
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static njs_jump_off_t
+njs_vmcode_array(njs_vm_t *vm, u_char *pc)
+{
+    uint32_t            length;
+    njs_array_t         *array;
+    njs_value_t         *value;
+    njs_vmcode_array_t  *code;
+
+    code = (njs_vmcode_ar...
+
+Extracted patch:
+if (length != 0) {
+    njs_set_invalid(value);
+    value++;
+    length--;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[23/52] php___php-src@1cda0d7c2ffb62d8331c64e703131d9cabdc03ea
+SHA: 1cda0d7c2ffb62d8331c64e703131d9cabdc03ea
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static size_t exif_convert_any_to_int(void *value, int format, int motorola_intel TSRMLS_DC)
+{
+	int 		s_den;
+	unsigned 	u_den;
+
+	switch(format) {
+		case TAG_FMT_SBYTE:     return *(signed char *)value;
+		case TAG_FMT_BYT...
+
+Extracted patch:
+static size_t exif_convert_any_to_int(void *value, int format, int motorola_intel TSRMLS_DC)
+{
+    int s_den;
+    unsigned u_den;
+
+    switch (format) {
+        case TAG_FMT_SBYTE:     return  *(signed char *)value;
+        case TAG_FMT_BYTE:      return  *(uchar *)value;
+
+        case TAG_FMT_USHORT:    return php_ifd_get16u(value, motorola_intel);
+        case TAG_FMT_ULONG:     return php_ifd<｜begin▁of▁sentence｜>.get32u(value, motorola_intel);
+
+        case TAG_FMT_URATIONAL:
+            u_den = php_ifd_get32u(4 + (char *)value, motorola_intel);
+            if (u_den == 0) {
+                return 0;
+            } else {
+                return php_ifd_get32u(value, motorola_intel) / u_den;
+            }
+
+        case TAG_FMT_SRATIONAL:
+            s_den = php_ifd_get32s(4 + (char *)value, motorola_intel);
+            if (s_den == 0) {
+                return 0;
+            } else {
+                return php_ifd_get32s(value, motorola_intel) / s_den;
+            }
+
+        case TAG_FMT_SSHORT:    return php_ifd_get16u(value, motorola_intel);
+        case TAG_FMT_SLONG:     return php_ifd_get32s(value, motorola_intel);
+
+        // Not sure if this is correct (never seen float used in Exif format) 
+        case TAG_FMT_SINGLE:
+#ifdef EXIF_DEBUG
+            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "Found value of type single");
+#endif
+            return (size_t)*(float *)value;
+        case TAG_FMT_DOUBLE:
+#ifdef EXIF_DEBUG
+            php_error_docref(NULL TSRMLS_CC, E_NOTICE, "Found value of type double");
+#endif
+            return (size_t)*(double *)value;
+    }
+    return 0;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[24/52] php___php-src@28a6ed9f9a36b9c517e4a8a429baf4dd382fc5d5
+SHA: 28a6ed9f9a36b9c517e4a8a429baf4dd382fc5d5
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+SPL_METHOD(SplDoublyLinkedList, offsetSet)
+{
+	zval                  *zindex, *value;
+	spl_dllist_object     *intern;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "zz", &zindex, &value) == FAILURE) {
+		return;
+	}
+
+	intern...
+
+Extracted patch:
+// corrected hunk
+efree(value);
+
+Compile : True
+Fixed   : False
+============================================================
+[25/52] php___php-src@863d37ea66d5c960db08d6f4a2cbd2518f0f80d1
+SHA: 863d37ea66d5c960db08d6f4a2cbd2518f0f80d1
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+void gdImageFillToBorder (gdImagePtr im, int x, int y, int border, int color)
+{
+	int lastBorder;
+	/* Seek left */
+	int leftLimit = -1, rightLimit;
+	int i, restoreAlphaBlending = 0;
+
+	if (border < 0) {
+		/* Refuse to fill...
+
+Extracted patch:
+void gdImageFillToBorder(gdImagePtr im, int x, int y, int border, int color) {
+    int lastBorder;
+    /* Seek left */
+    int leftLimit = -1, rightLimit;
+    int i, restoreAlphaBlending = 0;
+
+    if (border < 0 || border >= im->colorsTotal || color < 0 || color >= im->colorsTotal) {
+        /* Refuse to fill to a non-solid border or invalid colors */
+        return;
+    }
+
+    restoreAlphaBlending = im->alphaBlendingFlag;
+    im->alphaBlendingFlag = 0;
+
+    if (x >= im->sx) {
+        x = im->sx - 1;
+    } else if (x < 0) {
+        x = 0;
+    }
+    if (y >= im->sy) {
+        y = im->sy - 1;
+    } else if (y < 0) {
+        y = 0;
+    }
+
+    for (i = x; i >= 0; i--) {
+        if (gdImageGetPixel(im, i, y) == border) {
+            break;
+        }
+        gdImageSetPixel(im, i, y, color);
+        leftLimit = i;
+    }
+    if (leftLimit == -1) {
+        im->alphaBlendingFlag = restoreAlphaBlending;
+        return;
+    }
+    /* Seek right */
+    rightLimit = x;
+    for (i = x + 1; i < im->sx; i++) {
+        if (gdImageGetPixel(im, i, y) == border) {
+            break;
+        }
+        gdImageSetPixel(im, i, y, color);
+        rightLimit = i;
+    }
+    /* Look at lines above and below and start paints */
+    /* Above */
+    if (y > 0) {
+        lastBorder = 1;
+        for (i = leftLimit; i <= rightLimit; i++) {
+            int c = gdImageGetPixel(im, i, y - 1);
+            if (lastBorder) {
+                if ((c != border) && (c != color)) {
+                    gdImageFillToBorder(im, i, y - 1, border, color);
+                    lastBorder = 0;
+                }
+            } else if (c == border || c == color) {
+                lastBorder = 1;
+            }
+        }
+    }
+
+    /* Below */
+    if (y < im->sy - 1) {
+        lastBorder = 1;
+        for (i = leftLimit; i <= rightLimit; i++) {
+            int c = gdImageGetPixel(im, i, y + 1);
+
+            if (lastBorder) {
+                if ((c != border) && (c != color)) {
+                    gdImageFillToBorder(im, i, y + 1, border, color);
+                    lastBorder = 0;
+                }
+            } else if (c == border || c == color) {
+                lastBorder = 1;
+            }
+        }
+    }
+    im->alphaBlendingFlag = restoreAlphaBlending;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[26/52] php___php-src@b88393f08a558eec14964a55d3c680fe67407712
+SHA: b88393f08a558eec14964a55d3c680fe67407712
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int wddx_stack_destroy(wddx_stack *stack)
+{
+	register int i;
+
+	if (stack->elements) {
+		for (i = 0; i < stack->top; i++) {
+			if (((st_entry *)stack->elements[i])->data)	{
+				zval_ptr_dtor(&((st_entry *)stack->el...
+
+Extracted patch:
+static int wddx_stack_destroy(wddx_stack *stack)
+{
+    register int i;
+
+    if (stack && stack->elements) { // Check if stack and elements are not NULL
+        for (i = 0; i < stack->top; i++) {
+            st_entry* entry = (st_entry*)stack->elements[i];
+            
+            if (entry && entry->data) {  // Check if entry and data are not NULL
+                zval_ptr_dtor(&(entry->data));
+            }
+            if (entry && entry->varname) {  // Check if entry and varname are not NULL
+                efree(entry->varname);
+            }
+            
+            if (entry) {  // Free the memory only if it's not NULL
+                efree(stack->elements[i]);
+            }
+        }
+        
+        efree(stack->elements);  // Always free the elements array
+    }
+    
+    return SUCCESS;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[27/52] redis___hiredis@76a7b10005c70babee357a7d0f2becf28ec7ed1e
+SHA: 76a7b10005c70babee357a7d0f2becf28ec7ed1e
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static void *createArrayObject(const redisReadTask *task, size_t elements) {
+    redisReply *r, *parent;
+
+    r = createReplyObject(task->type);
+    if (r == NULL)
+        return NULL;
+
+    if (elements > 0) {
+        r-...
+
+Extracted patch:
+The vulnerability in your code is related to memory allocation and deallocation. The `hi_calloc` function seems to be used for dynamic memory allocation, but it's not clear what this function does or how it works. 
+
+However, based on the context of your code, I can suggest a few things:
+
+1. Check if `elements > 0`, then only allocate memory for `r->element`. If `elements == 0`, you should not attempt to allocate any memory and return immediately. 
+2. Ensure that the allocated memory is properly deallocated when it's no longer needed. This can be done by using a function like `free(ptr)` or `hi_free(ptr)` where `ptr` is the pointer to the dynamically allocated memory.
+3. Be aware of potential issues with overflow if `elements > SIZE_MAX / sizeof(redisReply*)`, as this could lead to undefined behavior. 
+4. Ensure that all pointers are initialized before they're used. In your code, you seem to be assuming that `r->element` is a valid pointer at the point where it's being used. If it hasn't been allocated yet (i.e., if `elements == 0`), this could lead to undefined behavior.
+5. Be aware of potential issues with memory leaks if an error occurs after allocating memory but before freeing it, as this can cause a memory leak. 
+
+Without more context or the definition of `hi_calloc` and `freeReplyObject` functions, I'm unable to provide a more specific solution. If you could provide these details, I would be able to give a more accurate fix.
+
+Compile : False
+Fixed   : False
+============================================================
+[28/52] redis___redis@bc7fe41e5857a0854d524e2a63a028e9394d2a5c
+SHA: bc7fe41e5857a0854d524e2a63a028e9394d2a5c
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+void hincrbyfloatCommand(client *c) {
+    long double value, incr;
+    long long ll;
+    robj *o;
+    sds new;
+    unsigned char *vstr;
+    unsigned int vlen;
+
+    if (getLongDoubleFromObjectOrReply(c,c->argv[3],&incr,NU...
+
+Extracted patch:
+void hincrbyfloatCommand(client *c) {
+    // ... existing code ...
+    
+    if (getLongDoubleFromObjectOrReply(c, c->argv[3], &incr, NULL) != C_OK) return;
+    
+    // ... existing code ...
+    
+    value += incr;
+    
+    if (isnan(value) || isinf(value)) {
+        addReplyError(c,"increment would produce NaN or Infinity");
+        return;
+    }
+    
+    // ... existing code ...
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[29/52] sqlite___sqlite@54d501092d88c0cf89bec4279951f548fb0b8618
+SHA: 54d501092d88c0cf89bec4279951f548fb0b8618
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int zipfileUpdate(
+  sqlite3_vtab *pVtab, 
+  int nVal, 
+  sqlite3_value **apVal, 
+  sqlite_int64 *pRowid
+){
+  ZipfileTab *pTab = (ZipfileTab*)pVtab;
+  int rc = SQLITE_OK;             /* Return Code */
+  ZipfileEnt...
+
+Extracted patch:
+if( nVal>1 ){
+    /* Check that "sz" and "rawdata" are both NULL */
+    if( sqlite3_value_type(apVal[5])!=SQLITE_NULL ){
+      zipfileTableErr(pTab,  "sz must be NULL");
+      rc = SQLITE_CONSTRAINT;
+    }
+    if( sqlite3_value_type(apVal[6])!=SQLITE_NULL ){
+      zipfileTableErr(pTab,  "rawdata must be NULL"); 
+      rc = SQLITE_CONSTRAINT;
+    }
+
+Compile : True
+Fixed   : False
+============================================================
+[30/52] the-tcpdump-group___tcpdump@061e7371a944588f231cb1b66d6fb070b646e376
+SHA: 061e7371a944588f231cb1b66d6fb070b646e376
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static const u_char *
+ikev1_id_print(netdissect_options *ndo, u_char tpay _U_,
+	       const struct isakmp_gen *ext, u_int item_len,
+	       const u_char *ep _U_, uint32_t phase, uint32_t doi _U_,
+	       uint32_t proto ...
+
+Extracted patch:
+static const u_char *
+ikev1_id_print(netdissect_options *ndo, u_char tpay_U_,
+               const struct isakmp_gen *ext, u_int item_len,
+               const u_char *ep_U_, uint32_t phase, uint32_t doi_U_,
+               uint32_t proto_U_, int depth_U_)
+{
+#define USE_IPSECDOI_IN_PHASE1 1
+    const struct ikev1_pl_id *p;
+    struct ikev1_pl_id id;
+    static const char *idtypestr[] = {
+        "IPv4", "IPv4net", "IPv6", "IPv6net",
+    };
+    static const char *ipsecidtypestr[] = {
+        NULL, "IPv4", "FQDN", "user FQDN", "IPv4net", "IPv6",
+        "IPv6net", "IPv4range", "IPv6range", "ASN1 DN", "ASN1 GN",
+        "keyid",
+    };
+    int len;
+    const u_char *data;
+
+    ND_PRINT((ndo, "%s:", NPSTR(ISAKMP_NPTYPE_ID)));
+
+    p = (const struct ikev1_pl_id *)ext;
+    ND_TCHECK(*p);
+    UNALIGNED_MEMCPY(&id, ext, sizeof(id));
+    if (sizeof(*p) < item_len) {
+        data = (const u_char *)(p + 1);
+        len = item_len - sizeof(*p);
+    } else {
+        data = NULL;
+        len = 0;
+    }
+
+#if 0 /*debug*/
+    ND_PRINT((ndo, " [phase=%d doi=%d proto=%d]", phase, doi, proto));
+#endif
+    switch (phase) {
+#ifndef USE_IPSECDOI_IN_PHASE1
+        case 1:
+#endif
+        default:
+            ND_PRINT((ndo, " idtype=%s", STR_OR_ID(id.d.id_type, idtypestr)));
+            ND_PRINT((ndo, " doi_data=%u", (uint32_t)(ntohl(id.d.doi_data) & 0xffffff)));
+            break;
+
+#ifdef USE_IPSECDOI_IN_PHASE1
+        case 1:
+#endif
+        case 2:
+        {
+            const struct ipsecdoi_id *doi_p;
+            struct ipsecdoi_id doi_id;
+            const char *p_name;
+
+            doi_p = (const struct ipsecdoi_id *)ext;
+            ND_TCHECK(*doi_p);
+            UNALIGNED_MEMCPY(&doi_id, ext, sizeof(doi_id));
+            ND_PRINT((ndo, " idtype=%s", STR_OR_ID(doi_id.type, ipsecidtypestr)));
+            /* A protocol ID of 0 DOES NOT mean IPPROTO_IP! */
+            if (!ndo->ndo_nflag && doi_id.proto_id && (p_name = netdb_protoname(doi_id.proto_id)) != NULL)
+                ND_PRINT((ndo, " protoid=%s", p_name));
+            else
+                ND_PRINT((ndo, " protoid=%u", doi_id.proto_id));
+            ND_PRINT((ndo, " port=%d", ntohs(doi_id.port)));
+            if (!len)
+                break;
+            if (data == NULL)
+                goto trunc;
+            ND_TCHECK2(*data, len);
+            switch (doi_id.type) {
+                case IPSECDOI_ID_IPV4_ADDR:
+                    if (len < 4)
+                        ND_PRINT((ndo, " len=%d [bad: < %d]", len, 4));
+                    else
+                        ND_PRINT((ndo, " len=%d %s", len, ipaddr_string(ndo, data)));
+                    len = 0;
+                    break;
+                case IPSECDOI_ID_FQDN:
+                case IPSECDOI_ID_USER_FQDN:
+                {
+                    int i;
+                    ND_PRINT((ndo, " len=%d ", len));
+                    for (i = 0; i < len; i++)
+                        safeputchar(ndo, data[i]);
+                    len = 0;
+                    break;
+                }
+                case IPSECDOI_ID_IPV4_ADDR_SUBNET:
+                {
+                    const u_char *mask;
+                    if (len < 8)
+                        ND_PRINT((ndo, " len=%d [bad: < %d]", len, 8));
+                    else {
+                        mask = data + sizeof(struct in_addr);
+                        ND_PRINT((ndo, " len=%d %s/%u.%u.%u.%u", len, ipaddr_string(ndo, data), mask[0], mask[1], mask[2], mask[3]));
+                    }
+                    len = 0;
+                    break;
+                }
+                case IPSECDOI_ID_IPV6_ADDR:
+                    if (len < 16)
+                        ND_PRINT((ndo, " len=%d [bad: < %d]", len, 16));
+                    else
+                        ND_PRINT((ndo, " len=%d %s", len, ip6addr_string(ndo, data)));
+                    len = 0;
+                    break;
+                case IPSECDOI_ID_IPV4_ADDR_RANGE:
+                    if (len < 8)
+                        ND_PRINT((ndo, " len=%d [bad: < %d]", len, 8));
+                    else {
+                        ND_PRINT((ndo, " len=%d %s-%s", len, ipaddr_string(ndo, data), ipaddr_string(ndo, data + sizeof(struct in_addr))));
+                    }
+                    len = 0;
+                    break;
+                case IPSECDOI_ID_IPV6_ADDR_RANGE:
+                    if (len < 32)
+                        ND_PRINT((ndo, " len=%d [bad: < %d]", len, 32));
+                    else {
+                        ND_PRINT((ndo, " len=%d %s-%s", len, ip6addr_string(ndo, data), ip6addr_string(ndo, data + sizeof(struct in6_addr))));
+                    }
+                    len = 0;
+                    break;
+                case IPSECDOI_ID_DER_ASN1_DN:
+                case IPSECDOI_ID_DER_ASN1_GN:
+                case IPSECDOI_ID_KEY_ID:
+                    break;
+            }
+            break;
+        }
+    }
+    if (data && len) {
+        ND_PRINT((ndo, " len=%d", len));
+        if (2 < ndo->ndo_vflag) {
+            ND_PRINT((ndo, " "));
+            if (!rawprint(ndo, (const uint8_t *)data, len))
+                goto trunc;
+        }
+    }
+    return (const u_char *)ext + item_len;
+trunc:
+    ND_PRINT((ndo, " [|%s]", NPSTR(ISAKMP_NPTYPE_ID)));
+    return NULL;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[31/52] the-tcpdump-group___tcpdump@29e5470e6ab84badbc31f4532bb7554a796d9d52
+SHA: 29e5470e6ab84badbc31f4532bb7554a796d9d52
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+void
+bootp_print(netdissect_options *ndo,
+	    register const u_char *cp, u_int length)
+{
+	register const struct bootp *bp;
+	static const u_char vm_cmu[4] = VM_CMU;
+	static const u_char vm_rfc1048[4] = VM_RFC1048;
+
+	bp =...
+
+Extracted patch:
+// vulnerable hunk
+	ND_PRINT((ndo, ", Flags [%s]",
+		  bittok2str(bootp_flag_values, "none", EXTRACT_16BITS(&bp->bp_flags))));
+
+Compile : True
+Fixed   : False
+============================================================
+[32/52] the-tcpdump-group___tcpdump@2d669862df7cd17f539129049f6fb70d17174125
+SHA: 2d669862df7cd17f539129049f6fb70d17174125
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+int
+frag6_print(netdissect_options *ndo, register const u_char *bp, register const u_char *bp2)
+{
+	register const struct ip6_frag *dp;
+	register const struct ip6_hdr *ip6;
+
+	dp = (const struct ip6_frag *)bp;
+	ip6 = (cons...
+
+Extracted patch:
+if (sizeof(dp->ip6f_offlg) == 2) { // Assuming ip6f_offlg is 16 bits
+    ND_TCHECK(dp->ip6f_offlg);
+} else {
+    // Handle the case where ip6f_offlg might be larger than 0xffff
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[33/52] the-tcpdump-group___tcpdump@571a6f33f47e7a2394fa08f925e534135c29cf1e
+SHA: 571a6f33f47e7a2394fa08f925e534135c29cf1e
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static char *
+isis_print_id(const uint8_t *cp, int id_len)
+{
+    int i;
+    static char id[sizeof("xxxx.xxxx.xxxx.yy-zz")];
+    char *pos = id;
+
+    for (i = 1; i <= SYSTEM_ID_LEN; i++) {
+        snprintf(pos, sizeof(id)...
+
+Extracted patch:
+static char *isis_print_id(const uint8_t *cp, int id_len) {
+    static char id[sizeof("xxxx.xxxx.xxxx.yy-zz")];
+    char *pos = id;
+
+    for (int i = 0; i < id_len; i++)  {
+        snprintf(pos, sizeof(id) - (pos - id), "%02x", cp[i]);
+        pos += strlen(pos);
+        if (i == 1 || i == 3)
+            *pos++ = '.';
+    }
+    if (id_len >= NODE_ID_LEN)  {
+        snprintf(pos, sizeof(id) - (pos - id), ".%02x", cp[NODE_ID_LEN]);
+        pos += strlen(pos);
+    }
+    if (id_len == LSP_ID_LEN)
+        snprintf(pos, sizeof(id) - (pos - id), "-%02x", cp[LSP_ID_LEN]);
+    return(id);
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[34/52] the-tcpdump-group___tcpdump@5d0d76e88ee2d3236d7e032589d6f1d4ec5f7b1e
+SHA: 5d0d76e88ee2d3236d7e032589d6f1d4ec5f7b1e
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+isis_print_is_reach_subtlv(netdissect_options *ndo,
+                           const uint8_t *tptr, u_int subt, u_int subl,
+                           const char *ident)
+{
+        u_int te_class,priority_level...
+
+Extracted patch:
+ND_TCHECK2(*tptr, subl); // Check if there is enough data to extract
+                bw.i = EXTRACT_32BITS(tptr);
+                ND_PRINT((ndo, "%.3f Mbps", bw.f * 8 / 1000000));
+
+Compile : True
+Fixed   : False
+============================================================
+[35/52] the-tcpdump-group___tcpdump@6f5ba2b651cd9d4b7fa8ee5c4f94460645877c45
+SHA: 6f5ba2b651cd9d4b7fa8ee5c4f94460645877c45
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+name_len(netdissect_options *ndo,
+         const unsigned char *s, const unsigned char *maxbuf)
+{
+    const unsigned char *s0 = s;
+    unsigned char c;
+
+    if (s >= maxbuf)
+	return(-1);	/* name goes past the ...
+
+Extracted patch:
+static int
+name_len(netdissect_options *ndo, const unsigned char *s, const unsigned char *maxbuf)
+{
+    const unsigned char *s0 = s;
+    unsigned char c;
+
+    if (s >= maxbuf) {
+        return(-1);		/* name goes past the end of the buffer */
+    }
+    ND_TCHECK2(*s, 1);
+    c = *s;
+    if ((c & 0xC0) == 0xC0)
+	return(2);
+    while (*s) {
+        s += (*s) + 1;
+	if (s >= maxbuf) {
+	    return(-1);		/* name goes past the end of the buffer */
+	}
+	ND_TCHECK2(*s, 1);
+     }
+    return(PTR_DIFF(s, s0) + 1);
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[36/52] the-tcpdump-group___tcpdump@7335163a6ef82d46ff18f3e6099a157747241629
+SHA: 7335163a6ef82d46ff18f3e6099a157747241629
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static void
+handle_mlppp(netdissect_options *ndo,
+             const u_char *p, int length)
+{
+    if (!ndo->ndo_eflag)
+        ND_PRINT((ndo, "MLPPP, "));
+
+    ND_PRINT((ndo, "seq 0x%03x, Flags [%s], length %u",
+        ...
+
+Extracted patch:
+void ND_PRINT(const netdissect_options *ndo, const char *fmt, ...);
+
+Compile : True
+Fixed   : False
+============================================================
+[37/52] the-tcpdump-group___tcpdump@7d3aba9f06899d0128ef46e8a2fa143c6fad8f62
+SHA: 7d3aba9f06899d0128ef46e8a2fa143c6fad8f62
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+mobility_opt_print(netdissect_options *ndo,
+                   const u_char *bp, const unsigned len)
+{
+	unsigned i, optlen;
+
+	for (i = 0; i < len; i += optlen) {
+		ND_TCHECK(bp[i]);
+		if (bp[i] == IP6MOPT_PAD1...
+
+Extracted patch:
+static int
+mobility_opt_print(netdissect_options *ndo, const u_char *bp, const unsigned len)
+{
+    unsigned i, optlen;
+
+    for (i = 0; i < len; i += optlen) {
+        ND_TCHECK(bp[i]);
+        if (bp[i] == IP6MOPT_PAD1)
+            optlen = 1;
+        else {
+            if (i + 1 < len) {
+                ND_TCHECK(bp[i + 1]);
+                optlen = bp[i + 1] + 2;
+            }
+            else
+                goto trunc;
+        }
+        if (i + optlen > len) {
+            goto trunc;
+        }
+        ND_TCHECK(bp[i + optlen]);
+
+        switch (bp[i]) {
+        case IP6MOPT_PAD1:
+            ND_PRINT((ndo, "(pad1)"));
+            break;
+        case IP6MOPT_PADN:
+            if (len - i < IP6MOPT_MINLEN) {
+                ND_PRINT((ndo, "(padn: trunc)"));
+                goto trunc;
+            }
+            ND_PRINT((ndo, "(padn)"));
+            break;
+        case IP6MOPT_REFRESH:
+            if (len - i < IP6MOPT_REFRESH_MINLEN) {
+                ND_PRINT((ndo, "(refresh: trunc)"));
+                goto trunc;
+            }
+            /* units of 4 secs */
+            ND_TCHECK_16BITS(&bp[i + 2]);
+            ND_PRINT((ndo, "(refresh: %u)", EXTRACT_16BITS(&bp[i + 2]) << 2));
+            break;
+        case IP6MOPT_ALTCOA:
+            if (len - i < IP6MOPT_ALTCOA_MINLEN) {
+                ND_PRINT((ndo, "(altcoa: trunc)"));
+                goto trunc;
+            }
+            ND_PRINT((ndo, "(alt-CoA: %s)", ip6addr_string(ndo, &bp[i + 2])));
+            break;
+        case IP6MOPT_NONCEID:
+            if (len - i < IP6MOPT_NONCEID_MINLEN) {
+                ND_PRINT((ndo, "(ni: trunc)"));
+                goto trunc;
+            }
+            ND_PRINT((ndo, "(ni: ho=0x%04x co=0x%04x)", EXTRACT_16BITS(&bp[i + 2]),
+                      EXTRACT_16BITS(&bp[i + 4])));
+            break;
+        case IP6MOPT_AUTH:
+            if (len - i < IP6MOPT_AUTH_MINLEN) {
+                ND_PRINT((ndo, "(auth: trunc)"));
+                goto trunc;
+            }
+            ND_PRINT((ndo, "(auth)"));
+            break;
+        default:
+            if (len - i < IP6MOPT_MINLEN) {
+                ND_PRINT((ndo, "(sopt_type 0x%02x: trunc)", bp[i]));
+                goto trunc;
+            }
+            ND_PRINT((ndo, "(type-0x%02x: len=%u)", bp[i], bp[i + 1]));
+            break;
+        }
+    }
+    return 0;
+
+trunc:
+    return 1;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[38/52] the-tcpdump-group___tcpdump@8512734883227c11568bb35da1d48b9f8466f43f
+SHA: 8512734883227c11568bb35da1d48b9f8466f43f
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+u_int
+ieee802_15_4_if_print(netdissect_options *ndo,
+                      const struct pcap_pkthdr *h, const u_char *p)
+{
+	u_int caplen = h->caplen;
+	u_int hdrlen;
+	uint16_t fc;
+	uint8_t seq;
+	uint16_t panid = 0;
+
+	if (...
+
+Extracted patch:
+if (caplen < 4) { // Checking if we have at least 2 bytes left to read
+    ND_PRINT((ndo, "[|802.15.4]"));
+    return hdrlen;
+}
+uint16_t addr = EXTRACT_LE_16BITS(p + 2); // Reading the address
+p += 2; 
+caplen -= 2;
+hdrlen += 2;
+if (ndo->ndo_vflag)
+    ND_PRINT((ndo,"%04x:%04x ", panid, addr));
+
+Compile : True
+Fixed   : False
+============================================================
+[39/52] the-tcpdump-group___tcpdump@88b2dac837e81cf56dce05e6e7b5989332c0092d
+SHA: 88b2dac837e81cf56dce05e6e7b5989332c0092d
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+ospf6_decode_v3(netdissect_options *ndo,
+                register const struct ospf6hdr *op,
+                register const u_char *dataend)
+{
+	register const rtrid_t *ap;
+	register const struct lsr6 *lsrp;
+	r...
+
+Extracted patch:
+if(((const u_char *)ap + sizeof(*ap)) > dataend) {
+    // Handle error, ap points beyond dataend
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[40/52] the-tcpdump-group___tcpdump@8934a7d6307267d301182f19ed162563717e29e3
+SHA: 8934a7d6307267d301182f19ed162563717e29e3
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+telnet_parse(netdissect_options *ndo, const u_char *sp, u_int length, int print)
+{
+	int i, x;
+	u_int c;
+	const u_char *osp, *p;
+#define FETCH(c, sp, length) \
+	do { \
+		if (length < 1) \
+			goto pktend; \
+		ND...
+
+Extracted patch:
+if (*p != IAC) {
+			goto pktend;
+		}
+
+Compile : True
+Fixed   : True
+============================================================
+[41/52] the-tcpdump-group___tcpdump@979dcefd7b259e9e233f77fe1c5312793bfd948f
+SHA: 979dcefd7b259e9e233f77fe1c5312793bfd948f
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+isis_print_extd_ip_reach(netdissect_options *ndo,
+                         const uint8_t *tptr, const char *ident, uint16_t afi)
+{
+    char ident_buffer[20];
+    uint8_t prefix[sizeof(struct in6_addr)]; /* sha...
+
+Extracted patch:
+if (processed + 1 > sizeof(tptr)) {
+            return 0; // Not enough space in tptr for another byte
+        }
+        status_byte = *(tptr++);
+        processed++;
+
+Compile : True
+Fixed   : False
+============================================================
+[42/52] the-tcpdump-group___tcpdump@a77ff09c46560bc895dea11dc9fe643486b056ac
+SHA: a77ff09c46560bc895dea11dc9fe643486b056ac
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+lldp_mgmt_addr_tlv_print(netdissect_options *ndo,
+                         const u_char *pptr, u_int len)
+{
+    uint8_t mgmt_addr_len, intf_num_subtype, oid_len;
+    const u_char *tptr;
+    u_int tlen;
+    cha...
+
+Extracted patch:
+static int
+lldp_mgmt_addr_tlv_print(netdissect_options *ndo, const u_char *pptr, u_int len)
+{
+    uint8_t mgmt_addr_len, intf_num_subtype, oid_len;
+    const u_char *tptr;
+    u_int tlen;
+    char *mgmt_addr;
+
+    tlen = len;
+    tptr = pptr;
+
+    if (tlen < 1) {
+        return 0;
+    }
+    mgmt_addr_len = *tptr++;
+    tlen--;
+
+    if (tlen < mgmt_addr_len) {
+        return 0;
+    }
+
+    mgmt_addr = lldp_network_addr_print(ndo, tptr, mgmt<｜begin▁of▁sentence｜>_addr_len);
+    if (mgmt_addr == NULL) {
+        return 0;
+    }
+    ND_PRINT((ndo, "Management Address length %u, %s", mgmt_addr_len, mgmt_addr));
+    tptr += mgmt_addr_len;
+    tlen -= mgmt_addr_len;
+
+    if (tlen < LLDP_INTF_NUM_LEN) {
+        return 0;
+    }
+
+    intf_num_subtype = *tptr;
+    ND_PRINT((ndo, "%s Interface Numbering (%u): %u",
+           tok2str(lldp_intf_numb_subtype_values, "Unknown", intf_num_subtype),
+           intf_num_subtype,
+           EXTRACT_32BITS(tptr + 1)));
+
+    tptr += LLDP_INTF_NUM_LEN;
+    tlen -= LLDP_INTF_NUM_LEN;
+
+    /* The OID is optional. */
+    if (tlen) {
+        oid_len = *tptr;
+
+        // Check if there's enough space for the entire OID data
+        if ((tlen < oid_len) || (oid_len < 1)) {
+            return 0;
+        }
+        ND_PRINT((ndo, "OID length %u", oid_len));
+        safeputs(ndo, tptr + 1, oid_len); // Check if the entire OID data can be read from the input buffer
+    }
+
+    return 1;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[43/52] the-tcpdump-group___tcpdump@a7e5f58f402e6919ec444a57946bade7dfd6b184
+SHA: a7e5f58f402e6919ec444a57946bade7dfd6b184
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+u_int
+ieee802_15_4_if_print(netdissect_options *ndo,
+                      const struct pcap_pkthdr *h, const u_char *p)
+{
+	u_int caplen = h->caplen;
+	u_int hdrlen;
+	uint16_t fc;
+	uint8_t seq;
+	uint16_t panid = 0;
+
+	if (...
+
+Extracted patch:
+if (caplen < 8) {
+    ND_PRINT((ndo, "[|802.15.4]"));
+    return hdrlen;
+}
+if (ndo->ndo_vflag)
+    ND_PRINT((ndo,"%04x:%s  ", panid, le64addr_string(ndo, p)));
+p += 8;
+caplen -= 8;
+hdrlen += 8;
+
+Compile : True
+Fixed   : False
+============================================================
+[44/52] the-tcpdump-group___tcpdump@aa0858100096a3490edf93034a80e66a4d61aad5
+SHA: aa0858100096a3490edf93034a80e66a4d61aad5
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static void
+ubik_print(netdissect_options *ndo,
+           register const u_char *bp)
+{
+	int ubik_op;
+	int32_t temp;
+
+	/*
+	 * Print out the afs call we're invoking.  The table used here was
+	 * gleaned from ubik/ubik_int...
+
+Extracted patch:
+if (bp != NULL) {
+    temp = EXTRACT_32BITS(bp);
+} else {
+    // handle the case where bp is NULL
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[45/52] the-tcpdump-group___tcpdump@b8e559afaeb8fe0604a1f8e3ad4dc1445de07a00
+SHA: b8e559afaeb8fe0604a1f8e3ad4dc1445de07a00
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+mobility_opt_print(netdissect_options *ndo,
+                   const u_char *bp, const unsigned len)
+{
+	unsigned i, optlen;
+
+	for (i = 0; i < len; i += optlen) {
+		ND_TCHECK(bp[i]);
+		if (bp[i] == IP6MOPT_PAD1...
+
+Extracted patch:
+static int
+mobility_opt_print(netdissect_options *ndo, const u_char *bp, const unsigned len)
+{
+    unsigned i, optlen;
+
+    for (i = 0; i < len; i += optlen) {
+        ND_TCHECK(bp[i]);
+        if (bp[i] == IP6MOPT_PAD1)
+            optlen = 1;
+        else {
+            if (i + 1 < len) {
+                ND_TCHECK(bp[i + 1]);
+                optlen = bp[i + 1] + 2;
+            }
+            else
+                goto trunc;
+        }
+        // Check for buffer overflow
+        if (i + optlen > len || i+optlen < len) 
+            goto trunc;
+        
+        ND_TCHECK(bp[i + optlen]);
+
+        switch (bp[i]) {
+            case IP6MOPT_PAD1:
+                ND_PRINT((ndo, "(pad1)"));
+                break;
+            // ... rest of the code remains same
+        }
+    }
+    return 0;
+
+trunc:
+    return 1;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[46/52] the-tcpdump-group___tcpdump@ca336198e8bebccc18502de27672fdbd6eb34856
+SHA: ca336198e8bebccc18502de27672fdbd6eb34856
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+u_int
+pktap_if_print(netdissect_options *ndo,
+               const struct pcap_pkthdr *h, const u_char *p)
+{
+	uint32_t dlt, hdrlen, rectype;
+	u_int caplen = h->caplen;
+	u_int length = h->len;
+	if_printer printer;
+	const ...
+
+Extracted patch:
+// vulnerable hunk
+uint32_t pkt_len = EXTRACT_LE_32BITS(&hdr->pkt_len);
+if (((char*)&(hdr->pkt_len) - (char*)hdr) + sizeof(uint32_t) > length) {
+    ND_PRINT((ndo, "[|pktap]"));
+    return 0;
+}
+
+Compile : True
+Fixed   : False
+============================================================
+[47/52] the-tcpdump-group___tcpdump@e6511cc1a950fe1566b2236329d6b4bd0826cc7a
+SHA: e6511cc1a950fe1566b2236329d6b4bd0826cc7a
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+static int
+lldp_private_8023_print(netdissect_options *ndo,
+                        const u_char *tptr, u_int tlv_len)
+{
+    int subtype, hexdump = FALSE;
+
+    if (tlv_len < 4) {
+        return hexdump;
+    }
+    subtype...
+
+Extracted patch:
+case LLDP_PRIVATE_8023_SUBTYPE_MTU:
+    ND_PRINT((ndo, "\n\t    MTU size %u", EXTRACT_16BITS(tptr + 4)));
+    break;
+
+Compile : True
+Fixed   : False
+============================================================
+[48/52] the-tcpdump-group___tcpdump@f76e7feb41a4327d2b0978449bbdafe98d4a3771
+SHA: f76e7feb41a4327d2b0978449bbdafe98d4a3771
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+void
+isakmp_rfc3948_print(netdissect_options *ndo,
+		     const u_char *bp, u_int length,
+		     const u_char *bp2)
+{
+
+	if(length == 1 && bp[0]==0xff) {
+		ND_PRINT((ndo, "isakmp-nat-keep-alive"));
+		return;
+	}
+
+	if(lengt...
+
+Extracted patch:
+The code you provided seems to be a part of netdissect library for network packet analysis in Wireshark, specifically it's dealing with ISAKMP (Internet Security Association and Key Management Protocol) packets. 
+
+However, without more context or information about the exact error message you are getting, it's hard to provide an accurate solution. The code seems fine as is, but if you are seeing a "TEST FAILED" error, it could be due to other issues such as memory corruption, incorrect input parameters, etc.
+
+If you can provide more details about the exact error message or any specific test case that fails, I would be able to give a more accurate solution. 
+
+For now, if "TEST FAILED" is an exit code for your build system, it might indicate some kind of failure during testing phase. You may want to check the logs for more detailed information about what exactly failed.
+
+Compile : False
+Fixed   : False
+============================================================
+[49/52] uriparser___uriparser@864f5d4c127def386dd5cc926ad96934b297f04e
+SHA: 864f5d4c127def386dd5cc926ad96934b297f04e
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+int URI_FUNC(ComposeQueryEngine)(URI_CHAR * dest,
+		const URI_TYPE(QueryList) * queryList,
+		int maxChars, int * charsWritten, int * charsRequired,
+		UriBool spaceToPlus, UriBool normalizeBreaks) {
+	UriBool firstItem = U...
+
+Extracted patch:
+int URI_FUNC(ComposeQueryEngine)(URI_CHAR  * dest,
+		const URI_TYPE(QueryList)  * queryList,
+		int maxChars, int  * charsWritten, int  * charsRequired,
+		UriBool spaceToPlus, UriBool normalizeBreaks) {
+	...
+	while (queryList != NULL) {
+		...
+		if ((write - dest) + ampersandLen + keyRequiredChars > maxChars) {
+			return URI_ERROR_OUTPUT_TOO_LARGE;
+		}
+
+		/* Copy key */
+		if (firstItem == URI_TRUE) {
+			firstItem = URI_FALSE;
+		} else {
+			write[0] = _UT('&');
+			write++;
+		}
+		afterKey = URI_FUNC(EscapeEx)(key, key + keyLen, write, spaceToPlus, normalizeBreaks);
+		write += (afterKey - write);
+
+		if (value != NULL) {
+			if ((write - dest) + 1 + valueRequiredChars > maxChars) {
+				return URI_ERROR_OUTPUT_TOO<｜begin▁of▁sentence｜>: 0/56UriSuite: 1/56UriSuite: 2/56UriSuite: 3/56UriSuite: 4/56UriSuite: 5/56UriSuite: 6/56UriSuite: 7/56UriSuite: 8/56UriSuite: 9/56UriSuite: 10/56UriSuite: 11/56UriSuite: 12/56UriSuite: 13/56UriSuite: 14/56UriSuite: 15/56UriSuite: 16/56UriSuite: 17/56UriSuite: 18/56UriSuite: 19/56UriSuite: 20/56UriSuite: 21/56UriSuite: 22/56UriSuite: 23/56UriSuite: 24/56UriSuite: 25/56UriSuite: 26/56UriSuite: 27/56UriSuite: 28/56UriSuite: 29/56UriSuite: 30/56UriSuite: 31/56UriSuite: 32/56UriSuite: 33/56UriSuite: 34/56UriSuite: 35/56UriSuite: 36/56UriSuite: 37/56UriSuite: 38/56UriSuite: 39/56UriSuite: 40/56UriSuite: 41/56UriSuite: 42/56UriSuite: 43/56UriSuite: 44/56UriSuite: 45/56UriSuite: 46/56UriSuite: 47/56UriSuite: 48/56UriSuite: 49/56UriSuite: 50/56UriSuite: 51/56UriSuite: 52/56UriSuite: 53/56UriSuite: 54/56UriSuite: 55/56UriSuite: 56/56UriSuite: 56/56, 98% correct in 0.000306 seconds
+	Test:    testQueryCompositionMathWrite_GoogleAutofuzz113244572
+	Suite:   UriSuite
+	File:    test/test.cpp
+	Line:    <｜begin▁of▁sentence｜>: 1780
+	Message: uriComposeQueryExA(dest, &first, sizeof(dest), &charsWritten, spaceToPlus, normalizeBreaks) == URI_ERROR_OUTPUT_TOO_LARGE
+
+FourSuite: 0/7FourSuite: 1/7FourSuite: 2/7FourSuite: 3/7FourSuite: 4/7FourSuite: 5/7FourSuite: 6/7FourSuite: 7/7FourSuite: 7/7, 100% correct in 0.000245 seconds
+VersionSuite: 0/1bytes_printed: 5
+VersionSuite: 1/1VersionSuite: 1/1, 100% correct in 0.000012 seconds
+Total: 64 tests, 98% correct in 0.000563 seconds
+FAIL test/uriparser_test  (exit status: 1)
+
+Compile : True
+Fixed   : False
+============================================================
+[50/52] wez___atomicparsley@d72ccf06c98259d7261e0f3ac4fd8717778782c1
+SHA: d72ccf06c98259d7261e0f3ac4fd8717778782c1
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+void APar_ExtractDetails(FILE *isofile, uint8_t optional_output) {
+  char uint32_buffer[5];
+  Trackage track = {0};
+
+  AtomicInfo *mvhdAtom = APar_FindAtom("moov.mvhd", false, VERSIONED_ATOM, 0);
+  if (mvhdAtom != NULL) ...
+
+Extracted patch:
+char uint32_buffer[8]; // Changed from 5 to 8
+
+Compile : True
+Fixed   : False
+============================================================
+[51/52] znc___znc@2390ad111bde16a78c98ac44572090b33c3bd2d8
+SHA: 2390ad111bde16a78c98ac44572090b33c3bd2d8
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+void CClient::EchoMessage(const CMessage& Message) {
+    CMessage EchoedMessage = Message;
+    for (CClient* pClient : GetClients()) {
+        if (pClient->HasEchoMessage() ||
+            (pClient != this && (m_pNetwork-...
+
+Extracted patch:
+The vulnerability in your code seems to be related to memory management and object lifetime. The `EchoMessage` function creates a copy of the input `CMessage` object, but it does not handle any potential exceptions that might occur during this process. If an exception is thrown while copying the message, then the original message will become corrupted or dangling.
+
+To fix this issue, you should use smart pointers (like `std::shared_ptr`) to manage the lifetime of the copied message object. Here's how you can modify your function:
+
+```c++
+void CClient::EchoMessage(const std::shared_ptr<CMessage>& Message) {
+    auto EchoedMessage = std::make<｜begin▁of▁sentence｜>(Message); // create a copy of the message
+    for (CClient* pClient : GetClients()) {
+        if (pClient->HasEchoMessage() ||
+            (pClient != this && 
+             (m_pNetwork->IsChan(Message->GetParam(0)) || 
+              pClient->HasSelfMessage()))) {
+            EchoedMessage->SetNick(GetNickMask());
+            pClient->PutClient(*EchoedMessage);
+        }
+    }
+}
+```
+In this code, `std::shared_ptr` is used to manage the lifetime of the copied message object. The copy constructor of `CMessage` should be able to handle any exceptions that might occur during copying. 
+
+Please note that you need to ensure that the original message (i.e., the one passed as an argument to `EchoMessage`) is valid and not destroyed before this function returns. If the original message can become invalid at some point, then you should consider using a different approach for passing messages between functions or objects.
+
+Compile : True
+Fixed   : False
+============================================================
+[52/52] znc___znc@d229761821da38d984a9e4098ad96842490dc001
+SHA: d229761821da38d984a9e4098ad96842490dc001
+
+Prompt sent to LLM:
+  [system] You are a C/CPP code program repair expert
+  [user]   
+The following code contains a vulnerable function. Fix the vulnerability.
+```c
+bool CClient::OnTextMessage(CTextMessage& Message) {
+    CString sTargets = Message.GetTarget();
+
+    VCString vTargets;
+    sTargets.Split(",", vTargets, false);
+
+    for (CString& sTarget : vTargets) {
+        Message....
+
+Extracted patch:
+The error you're seeing is related to a test failure, not a vulnerability in your code. The `waitForReadyRead(timeout_ms)` function returns false when it times out waiting for data from the server. This could be due to network issues or the server being down. 
+
+However, without more context about how this function is used and what you're trying to achieve with your code, I can only provide a general suggestion:
+
+If `waitForReadyRead(timeout_ms)` returns false, it means that no data was received within the specified timeout period. This could be due to network issues or the server being down. You might want to handle these cases in your code. For example, you can try reconnecting to the server if it's currently disconnected.
+
+If `waitForReadyRead(timeout_ms)` is not returning true and causing a test failure, then there must be an issue with how your tests are set up or what they're testing for. You should investigate why this is happening. 
+
+In any case, the code you provided seems to be fine as it is, assuming that `waitForReadyRead(timeout_ms)` works correctly and returns true when data is available. If not, you would need to fix or handle that separately.
+
+Compile : False
+Fixed   : False
+============================================================
+OVERALL RESULTS
+============================================================
+Total cases   : 52
+Compile Rate  :  45 / 52  (86.5%)
+Pass@1         :   1 / 52  (1.9%)
